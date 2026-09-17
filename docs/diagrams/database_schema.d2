@@ -1,0 +1,288 @@
+direction: right
+
+title: "DuckDB Medallion Relational Warehouse Schema (data/idxfin.duckdb)" {
+  near: top-center
+  shape: text
+  style.font-size: 26
+  style.bold: true
+}
+
+ref: "Reference Layer (idxfin_ref)" {
+  style.fill: "#F3F4F6"
+  style.stroke: "#6B7280"
+  
+  concept: {
+    shape: sql_table
+    concept_id: varchar {constraint: primary_key}
+    domain: varchar
+    statement: varchar
+    label_en: varchar
+    label_id: varchar
+    data_type: varchar
+    period_type: varchar
+    balance: varchar
+  }
+
+  label_mapping: {
+    shape: sql_table
+    label_raw: varchar {constraint: primary_key}
+    concept_id: varchar {constraint: foreign_key}
+    mapping_method: varchar
+    confidence: double
+  }
+}
+
+bronze: "Bronze Layer (idxfin_bronze)" {
+  style.fill: "#EFF6FF"
+  style.stroke: "#3B82F6"
+
+  document: {
+    shape: sql_table
+    doc_id: varchar {constraint: primary_key}
+    issuer_id: varchar
+    doc_type: varchar
+    fiscal_year: int
+    fiscal_period: varchar
+    period_end: date
+    currency: varchar
+    scale: bigint
+    number_locale: varchar
+    page_count: int
+  }
+
+  page: {
+    shape: sql_table
+    doc_id: varchar {constraint: foreign_key}
+    page_no: int {constraint: primary_key}
+    text: varchar
+  }
+}
+
+silver: "Silver Layer (idxfin_silver)" {
+  style.fill: "#ECFDF5"
+  style.stroke: "#10B981"
+
+  fact: {
+    shape: sql_table
+    fact_id: varchar {constraint: primary_key}
+    issuer_id: varchar
+    doc_id: varchar {constraint: foreign_key}
+    concept_id: varchar {constraint: foreign_key}
+    label_raw: varchar
+    period_type: varchar
+    period_end: date
+    fiscal_year: int
+    fiscal_period: varchar
+    value: "decimal(38,6)"
+    raw_text: varchar
+    dim_key: varchar
+    lineage_page: int
+  }
+
+  officer_position: {
+    shape: sql_table
+    issuer_id: varchar
+    doc_id: varchar {constraint: foreign_key}
+    person_name: varchar
+    role: varchar
+    is_independent: boolean
+    source_page: int
+  }
+
+  forward_guidance: {
+    shape: sql_table
+    guidance_id: varchar {constraint: primary_key}
+    issuer_id: varchar
+    doc_id: varchar {constraint: foreign_key}
+    metric_label_raw: varchar
+    scenario: varchar
+    target_period_raw: varchar
+    source_page: int
+  }
+
+  audit_report: {
+    shape: sql_table
+    doc_id: varchar {constraint: primary_key}
+    issuer_id: varchar
+    fiscal_year: int
+    audit_firm: varchar
+    opinion: varchar
+    source_page: int
+  }
+
+  validation_result: {
+    shape: sql_table
+    run_id: varchar
+    doc_id: varchar {constraint: foreign_key}
+    rule_id: varchar
+    passed: boolean
+    lhs: "decimal(38,6)"
+    rhs: "decimal(38,6)"
+    diff: "decimal(38,6)"
+    message: varchar
+  }
+
+  review_task: {
+    shape: sql_table
+    task_id: varchar {constraint: primary_key}
+    doc_id: varchar {constraint: foreign_key}
+    target_ids: varchar
+    reason: varchar
+    priority: varchar
+    status: varchar
+  }
+}
+
+market: "Market & Benchmark Layer (idxfin_market)" {
+  style.fill: "#FEF3C7"
+  style.stroke: "#F59E0B"
+
+  stock_daily: {
+    shape: sql_table
+    ticker: varchar {constraint: primary_key}
+    trade_date: date {constraint: primary_key}
+    open: double
+    high: double
+    low: double
+    close: double
+    adj_close: double
+    volume: bigint
+    currency: varchar
+    source: varchar
+  }
+
+  commodity_daily: {
+    shape: sql_table
+    symbol: varchar {constraint: primary_key}
+    trade_date: date {constraint: primary_key}
+    commodity_name: varchar
+    commodity_category: varchar
+    open: double
+    high: double
+    low: double
+    close: double
+    volume: bigint
+    unit: varchar
+    currency: varchar
+  }
+
+  fx_daily: {
+    shape: sql_table
+    pair: varchar {constraint: primary_key}
+    trade_date: date {constraint: primary_key}
+    symbol: varchar
+    rate: double
+    open: double
+    high: double
+    low: double
+    close: double
+    base_currency: varchar
+    quote_currency: varchar
+  }
+}
+
+gold: "Gold Analytical Layer (idxfin_gold)" {
+  style.fill: "#FAF5FF"
+  style.stroke: "#8B5CF6"
+
+  financial_summary: {
+    shape: sql_table
+    issuer_id: varchar {constraint: primary_key}
+    period_end: date {constraint: primary_key}
+    fiscal_year: int
+    fiscal_period: varchar
+    currency: varchar
+    total_assets: "decimal(38,6)"
+    total_liabilities: "decimal(38,6)"
+    total_equity: "decimal(38,6)"
+    revenue: "decimal(38,6)"
+    net_profit: "decimal(38,6)"
+    operating_cash_flow: "decimal(38,6)"
+  }
+
+  financial_summary_provenance: {
+    shape: sql_table
+    issuer_id: varchar {constraint: primary_key}
+    period_end: date {constraint: primary_key}
+    fiscal_year: int
+    revenue_page: int
+    revenue_raw_text: varchar
+    net_profit_page: int
+    net_profit_raw_text: varchar
+    assets_page: int
+    equity_page: int
+    cash_flow_page: int
+    doc_id: varchar {constraint: foreign_key}
+  }
+
+  market_valuation: {
+    shape: sql_table
+    issuer_id: varchar {constraint: primary_key}
+    period_end: date {constraint: primary_key}
+    period_close_price: double
+    latest_close_price: double
+    price_change_since_period_pct: double
+    revenue: "decimal(38,6)"
+    net_profit: "decimal(38,6)"
+    total_equity: "decimal(38,6)"
+  }
+
+  commodity_trend_monthly: {
+    shape: sql_table
+    symbol: varchar {constraint: primary_key}
+    month_date: date {constraint: primary_key}
+    commodity_name: varchar
+    avg_close: double
+    min_close: double
+    max_close: double
+    end_month_close: double
+    monthly_return_pct: double
+    total_volume: bigint
+  }
+
+  operational_kpi: {
+    shape: sql_table
+    fact_id: varchar {constraint: primary_key}
+    issuer_id: varchar
+    doc_id: varchar {constraint: foreign_key}
+    period_end: date
+    fiscal_year: int
+    concept_id: varchar
+    label_raw: varchar
+    value: "decimal(38,6)"
+    unit_id: varchar
+    lineage_page: int
+  }
+
+  fx_rate_daily: {
+    shape: sql_table
+    pair: varchar {constraint: primary_key}
+    trade_date: date {constraint: primary_key}
+    rate_close: double
+    month_date: date
+    fiscal_year: int
+    monthly_avg_rate: double
+    yearly_avg_rate: double
+  }
+}
+
+# Relationships
+ref.concept.concept_id -> ref.label_mapping.concept_id
+bronze.document.doc_id -> bronze.page.doc_id
+
+bronze.document.doc_id -> silver.fact.doc_id
+ref.concept.concept_id -> silver.fact.concept_id
+bronze.document.doc_id -> silver.officer_position.doc_id
+bronze.document.doc_id -> silver.forward_guidance.doc_id
+bronze.document.doc_id -> silver.audit_report.doc_id
+bronze.document.doc_id -> silver.validation_result.doc_id
+bronze.document.doc_id -> silver.review_task.doc_id
+
+silver.fact -> gold.financial_summary: "Pivoted Facts"
+silver.fact.fact_id -> gold.operational_kpi.fact_id: "Volume Metric Filter"
+gold.financial_summary.period_end -> gold.financial_summary_provenance.period_end: "1:1 Lineage Trace"
+gold.financial_summary.issuer_id -> gold.market_valuation.issuer_id
+market.stock_daily.ticker -> gold.market_valuation.issuer_id: "Temporal Price Join"
+market.commodity_daily.symbol -> gold.commodity_trend_monthly.symbol: "Monthly Aggregation"
+market.fx_daily.pair -> gold.fx_rate_daily.pair: "Windowed Averages"
+gold.fx_rate_daily.trade_date -> gold.market_valuation.period_end: "Currency Translation"

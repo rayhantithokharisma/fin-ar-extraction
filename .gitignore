@@ -1,0 +1,113 @@
+# ==============================================================================
+# 1. Large Datasets & Binary Artifacts
+# ==============================================================================
+complete-ticker/
+bin/
+
+# ==============================================================================
+# 2. Environment Variables & Secrets (CRITICAL)
+# ==============================================================================
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# ==============================================================================
+# 3. Database Lakehouse & Staging Data
+# ==============================================================================
+*.duckdb
+*.duckdb.wal
+*.duckdb.tmp
+*.db
+*.sqlite3
+*.lock
+*.parquet
+
+# Ignore local runtime data while preserving tracked benchmark CSV assets
+data/*
+!data/benchmarks/
+!data/benchmarks/**
+
+# ==============================================================================
+# 4. Batch Execution Manifests & Local Run Metadata
+# ==============================================================================
+batch_tasks.json
+duckdb_issuers_batch.json
+
+# ==============================================================================
+# 5. Python Bytecode, Caches & Builds
+# ==============================================================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Packaging & distribution
+dist/
+build/
+develop-eggs/
+eggs/
+*.egg-info/
+*.egg
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# ==============================================================================
+# 6. Testing, Linting & Coverage
+# ==============================================================================
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+.hypothesis/
+.ruff_cache/
+.mypy_cache/
+
+# ==============================================================================
+# 7. Jupyter Notebook Checkpoints
+# ==============================================================================
+.ipynb_checkpoints/
+*/.ipynb_checkpoints/*
+
+# ==============================================================================
+# 8. Operating System & Editor Artifacts
+# ==============================================================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+ehthumbs.db
+desktop.ini
+
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# ==============================================================================
+# 9. Logs & Distributed Background Services
+# ==============================================================================
+*.log
+logs/
+dump.rdb
+celerybeat-schedule
+celerybeat.pid
+
+# ==============================================================================
+# 10. Node / Frontend / Package Managers
+# ==============================================================================
+node_modules/
+.npm/
+npm-debug.log*

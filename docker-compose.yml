@@ -1,0 +1,89 @@
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: idxfin-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: ["redis-server", "--appendonly", "yes"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: idxfin-api
+    command: ["python", "-m", "src.cli", "api", "--host", "0.0.0.0", "--port", "8000"]
+    ports:
+      - "8000:8000"
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/1
+      - CELERY_WORKER_CONCURRENCY=6
+      - OPEN_ROUTER_API_KEY=${OPEN_ROUTER_API_KEY}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - LLM_PROVIDER=${LLM_PROVIDER}
+      - DEFAULT_MODEL=${DEFAULT_MODEL}
+    volumes:
+      - ./src:/app/src
+      - ./schema_design:/app/schema_design
+      - ./data:/app/data
+      - ./examples:/app/examples
+      - ./complete-ticker:/app/complete-ticker:ro
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Pool of 6 concurrent Celery workers for extraction (LLM + Normalization to Parquet)
+  worker-extraction:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: idxfin-worker-extraction
+    command: ["celery", "-A", "src.celery_app", "worker", "-Q", "extraction", "-c", "6", "--loglevel=info"]
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/1
+      - OPEN_ROUTER_API_KEY=${OPEN_ROUTER_API_KEY}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - LLM_PROVIDER=${LLM_PROVIDER}
+      - DEFAULT_MODEL=${DEFAULT_MODEL}
+    volumes:
+      - ./src:/app/src
+      - ./schema_design:/app/schema_design
+      - ./data:/app/data
+      - ./examples:/app/examples
+      - ./complete-ticker:/app/complete-ticker:ro
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Single-writer Celery worker for DuckDB ingestion (strictly concurrency = 1)
+  worker-duckdb-writer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: idxfin-worker-duckdb-writer
+    command: ["celery", "-A", "src.celery_app", "worker", "-Q", "duckdb_writer", "-c", "1", "--loglevel=info"]
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/1
+    volumes:
+      - ./src:/app/src
+      - ./schema_design:/app/schema_design
+      - ./data:/app/data
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  redis_data:

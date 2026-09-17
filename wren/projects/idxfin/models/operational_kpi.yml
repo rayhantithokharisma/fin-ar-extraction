@@ -1,0 +1,36 @@
+name: operational_kpi
+table_reference:
+  catalog: idxfin
+  schema: idxfin_gold
+  table: operational_kpi
+description: "Operational Key Performance Indicators (KPIs) extracted from Annual Reports and Financial Statement disclosures: Production Volumes, Sales Volumes, Installed Capacities, and Utilization across Petrochemicals (Ammonia, LPG, Condensate), Mining (Nickel, Coal, Gold), Agriculture (CPO, TBS), and Infrastructure."
+primary_key:
+  - fact_id
+columns:
+  - name: fact_id
+    type: varchar
+    description: "Unique SHA-256 identifier for the fact."
+  - name: issuer_id
+    type: varchar
+    description: "IDX stock ticker symbol (e.g. ESSA, NCKL, ADRO, LSIP, ARCI)."
+  - name: fiscal_year
+    type: integer
+    description: "Fiscal reporting year (e.g. 2023, 2024, 2025)."
+  - name: fiscal_period
+    type: varchar
+    description: "Reporting period code (FY, Q1, H1, 9M)."
+  - name: concept_id
+    type: varchar
+    description: "Standardized operational concept ID (e.g. op.core.production_volume, op.core.sales_volume, op.core.installed_capacity)."
+  - name: label_raw
+    type: varchar
+    description: "Original disclosure line-item label from filing (e.g. Produksi Amoniak, Penjualan Amoniak, Produksi Elpiji, Produksi CPO)."
+  - name: value
+    type: decimal
+    description: "Reported numeric physical volume or metric value."
+  - name: unit_id
+    type: varchar
+    description: "Measurement unit (e.g. metrik ton, ton, bbl, MT, barrels per day)."
+  - name: lineage_page
+    type: integer
+    description: "Source PDF page number in the original disclosure filing."

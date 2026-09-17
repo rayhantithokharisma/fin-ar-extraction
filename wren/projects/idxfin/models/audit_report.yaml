@@ -1,0 +1,35 @@
+name: audit_report
+table_reference:
+  schema: idxfin_silver
+  table: audit_report
+  catalog: idxfin
+description: 'Independent Auditor''s Report disclosures: Accounting Firm (KAP), Signing
+  Partner, Audit Opinion, and Key Audit Matters (KAM).'
+columns:
+- name: issuer_id
+  type: varchar
+  description: IDX ticker symbol.
+- name: fiscal_year
+  type: integer
+  description: Audited fiscal year.
+- name: audit_firm
+  type: varchar
+  description: Public Accounting Firm name (Kantor Akuntan Publik / KAP).
+- name: network
+  type: varchar
+  description: 'Global accounting network affiliation (Big 4: PwC, EY, Deloitte, KPMG,
+    or BDO, etc.).'
+- name: signing_partner
+  type: varchar
+  description: Name of the signing Certified Public Accountant (CPA).
+- name: opinion
+  type: varchar
+  description: 'Auditor opinion: Unqualified (Wajar Tanpa Pengecualian / WTP), Qualified,
+    Adverse, Disclaimer.'
+- name: key_audit_matters
+  type: varchar
+  description: Titles or descriptions of Key Audit Matters (Hal Audit Utama) identified
+    by the auditor.
+- name: source_page
+  type: integer
+  description: PDF page number of the Independent Auditor's Report.

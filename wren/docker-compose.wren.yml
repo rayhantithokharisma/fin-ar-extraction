@@ -1,0 +1,137 @@
+networks:
+  idxfin-network:
+    name: idxfin-network
+    driver: bridge
+
+volumes:
+  qdrant_data:
+  wren_etc_data:
+  wren_engine_data:
+
+services:
+  # -----------------------------------------------------------------------------
+  # 0. Wren Bootstrap (Initializes etc/config.properties for Wren Engine)
+  # -----------------------------------------------------------------------------
+  wren-bootstrap:
+    image: ghcr.io/canner/wren-bootstrap:latest
+    container_name: wren-bootstrap
+    networks:
+      - idxfin-network
+    environment:
+      - DATA_PATH=/usr/src/app/etc
+    volumes:
+      - wren_etc_data:/usr/src/app/etc
+    command: /bin/sh init.sh
+
+  # -----------------------------------------------------------------------------
+  # 1. Qdrant Vector Database (Context memory, MDL semantic search, few-shot Q&A)
+  # -----------------------------------------------------------------------------
+  qdrant:
+    image: qdrant/qdrant:v1.9.0
+    container_name: wren-qdrant
+    networks:
+      - idxfin-network
+    ports:
+      - "6333:6333"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "/bin/bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/6333 && exec 3<&-"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # -----------------------------------------------------------------------------
+  # 2. Wren Engine (Rust / Apache DataFusion semantic query planner)
+  # Uses linux/amd64 platform emulation for Apple Silicon compatibility
+  # -----------------------------------------------------------------------------
+  wren-engine:
+    image: ghcr.io/canner/wren-engine:latest
+    platform: linux/amd64
+    container_name: wren-engine
+    networks:
+      - idxfin-network
+    ports:
+      - "8080:8080"
+    environment:
+      - WREN_ENGINE_PORT=8080
+      - LOG_LEVEL=info
+    volumes:
+      - wren_etc_data:/usr/src/app/etc
+      - wren_engine_data:/app/data
+      # Mount DuckDB in READ-ONLY mode to eliminate lock collisions
+      - ../data/idxfin.duckdb:/app/data/idxfin.duckdb:ro
+      - ../data/idxfin.duckdb:/data/idxfin.duckdb:ro
+      - ./projects/idxfin:/app/projects/idxfin
+    depends_on:
+      wren-bootstrap:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  # -----------------------------------------------------------------------------
+  # 3. Ibis Server (Data execution & dialect transformation)
+  # Uses linux/amd64 platform emulation for Apple Silicon compatibility
+  # -----------------------------------------------------------------------------
+  ibis-server:
+    image: ghcr.io/canner/wren-engine-ibis:latest
+    platform: linux/amd64
+    container_name: wren-ibis-server
+    networks:
+      - idxfin-network
+    ports:
+      - "8000:8000"
+    volumes:
+      - ../data/idxfin.duckdb:/data/idxfin.duckdb:ro
+    restart: unless-stopped
+
+  # -----------------------------------------------------------------------------
+  # 4. Wren AI Service (FastAPI, LiteLLM orchestration, prompt engine)
+  # Uses linux/amd64 platform emulation for Apple Silicon compatibility
+  # -----------------------------------------------------------------------------
+  wren-ai-service:
+    image: ghcr.io/canner/wren-ai-service:latest
+    platform: linux/amd64
+    container_name: wren-ai-service
+    networks:
+      - idxfin-network
+    ports:
+      - "5555:5555"
+    environment:
+      - QDRANT_HOST=qdrant
+      - QDRANT_PORT=6333
+      - WREN_AI_SERVICE_PORT=5555
+      - WREN_UI_PORT=3000
+      - WREN_ENGINE_ENDPOINT=http://wren-engine:8080
+      - IBIS_SERVER_ENDPOINT=http://ibis-server:8000
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - LLM_PROVIDER=${LLM_PROVIDER:-openai}
+      - DEFAULT_MODEL=${DEFAULT_MODEL:-gpt-5.6-luna}
+      - FALLBACK_MODEL=${FALLBACK_MODEL:-gpt-5.4-mini}
+      - CONFIG_PATH=/app/config.yaml
+    volumes:
+      - ./config.yaml:/app/config.yaml:ro
+      - ./projects/idxfin:/app/projects/idxfin
+    depends_on:
+      qdrant:
+        condition: service_healthy
+      wren-engine:
+        condition: service_started
+    restart: unless-stopped
+
+  # -----------------------------------------------------------------------------
+  # 5. Wren UI (Next.js Frontend: GenBI Chatbot, Visual Modeler, Dashboards)
+  # -----------------------------------------------------------------------------
+  wren-ui:
+    image: ghcr.io/canner/wren-ui:latest
+    container_name: wren-ui
+    networks:
+      - idxfin-network
+    ports:
+      - "3000:3000"
+    environment:
+      - WREN_AI_SERVICE_ENDPOINT=http://wren-ai-service:5555
+      - WREN_ENGINE_ENDPOINT=http://wren-engine:8080
+    depends_on:
+      - wren-ai-service
+    restart: unless-stopped

@@ -1,0 +1,120 @@
+direction: down
+
+title: "IDX Financial Statement, Market Data & Conversational GenBI Pipeline" {
+  near: top-center
+  shape: text
+  style.font-size: 28
+  style.bold: true
+}
+
+ingestion_tier: "Stage 1: Ingestion & Multi-Source Feeds" {
+  style.fill: "#F8FAFC"
+  style.stroke: "#94A3B8"
+  style.stroke-width: 2
+
+  bronze: "Bronze Layer: Corporate Filing Ingestion (idxfin_bronze)" {
+    style.fill: "#EFF6FF"
+    style.stroke: "#3B82F6"
+    style.stroke-width: 2
+
+    pdf: "PDF Corporate Filing\n(LK Financial Statement or AR)" { shape: document }
+    ingest: "Metadata Sniffer\n(Ticker, Currency, Locale, Scale)"
+    pymupdf: "PyMuPDF Extractor\n(Text Layer & Coordinates)"
+    sectionizer: "Intelligent Sectionizer\n(IDX Form Codes & Chapters)"
+    
+    pdf -> ingest -> pymupdf -> sectionizer
+  }
+
+  market: "Market & Macroeconomic Benchmark Feeds (idxfin_market)" {
+    style.fill: "#FEF3C7"
+    style.stroke: "#F59E0B"
+    style.stroke-width: 2
+
+    yf_stocks: "IDX Equities (4-Year Daily)\n(BBCA, ADRO, ESSA, NCKL, ARCI)" { shape: cylinder }
+    yf_comms: "Commodity Proxies & Energy\n(Gold GC=F, Oil CL=F/BZ=F, Gas NG=F, CF)" { shape: cylinder }
+    nh3_spot: "Physical Ammonia Benchmark\n(NH3=F Spot Assessment in USD/ton)" { shape: cylinder }
+    yf_fx: "Foreign Exchange Benchmark\n(USD/IDR Spot Daily Rates IDR=X)" { shape: cylinder }
+  }
+}
+
+processing_tier: "Stage 2: Extraction, Normalization & Accounting Validation" {
+  style.fill: "#F8FAFC"
+  style.stroke: "#94A3B8"
+  style.stroke-width: 2
+
+  extraction: "Extraction Engine: Structured LLM" {
+    style.fill: "#FEE2E2"
+    style.stroke: "#EF4444"
+    style.stroke-width: 2
+
+    prompt: "Prompt Engine & Context Injector"
+    llm: "LLM Inference\n(Gemini 2.5 Flash / OpenRouter / OpenAI)" { shape: hexagon }
+    pydantic: "Pydantic v2 Contracts\n(Statements, KPIs, Governance)"
+    
+    prompt -> llm -> pydantic
+  }
+
+  silver: "Silver Layer: Normalization & Quality Rules (idxfin_silver)" {
+    style.fill: "#ECFDF5"
+    style.stroke: "#10B981"
+    style.stroke-width: 2
+
+    norm: "Deterministic Normalizer\n(Locale, Signs, Scale, Period Types)"
+    map: "Concept & Counterparty Mapper\n(XBRL Taxonomy & Extension Slugs)"
+    val: "Validation Engine\n(33 Accounting Rules & Balance Sheet Identities)"
+    db_silver: "DuckDB idxfin_silver\n(Universal Facts, Officers, Guidance, Audits)" { shape: cylinder }
+    
+    norm -> map -> val -> db_silver
+  }
+}
+
+serving_tier: "Stage 3: Analytical Lakehouse & Conversational GenBI Layer" {
+  style.fill: "#F8FAFC"
+  style.stroke: "#94A3B8"
+  style.stroke-width: 2
+
+  gold: "Gold Layer: Analytical Lakehouse Views (idxfin_gold)" {
+    style.fill: "#FAF5FF"
+    style.stroke: "#8B5CF6"
+    style.stroke-width: 2
+
+    summary: "idxfin_gold.financial_summary\n(Pivoted Multi-Industry Statements)"
+    provenance: "idxfin_gold.financial_summary_provenance\n(Page Citations & Verbatim Cell Proof)"
+    valuation: "idxfin_gold.market_valuation\n(Fundamentals + Stock Closes + P/E, P/B)"
+    comm_trend: "idxfin_gold.commodity_trend_monthly\n(Monthly Macro Trends, Spreads & Returns)"
+    op_kpi: "idxfin_gold.operational_kpi\n(Physical Ammonia, Gas, Coal Volumes)"
+    fx_rate: "idxfin_gold.fx_rate_daily\n(USD/IDR Daily, Monthly & Annual Averages)"
+  }
+
+  genbi: "Conversational GenBI Layer (Wren AI & LangGraph Agent)" {
+    style.fill: "#FDF2F8"
+    style.stroke: "#DB2777"
+    style.stroke-width: 2
+
+    wren_mdl: "Wren Engine & Semantic MDL\n(Semantic Models, Joins & DuckDB Bridge)" { shape: package }
+    wren_ai: "Wren AI Service & Qdrant\n(Vector Indexing & LLM Query Planning)" { shape: package }
+    wren_ui: "Wren UI (port 3000)\n(Visual Exploration & Analytics Canvas)" { shape: rectangle }
+    chat_agent: "Conversational Chat Agent\n(wren/chat_agent.py ReAct Agent with Tool Use)" { shape: person }
+  }
+}
+
+# Cross-stage pipeline data flows
+ingestion_tier.bronze.sectionizer -> processing_tier.extraction.prompt: "Section Page Spans"
+processing_tier.extraction.pydantic -> processing_tier.silver.norm: "Raw Cell Tables & Attributes"
+
+processing_tier.silver.db_silver -> serving_tier.gold.summary: "Bitemporal Latest Facts"
+processing_tier.silver.db_silver -> serving_tier.gold.op_kpi: "Physical Production Volumes"
+serving_tier.gold.summary -> serving_tier.gold.provenance: "Audit Traceability"
+serving_tier.gold.summary -> serving_tier.gold.valuation: "Reporting Period End Dates"
+
+ingestion_tier.market.yf_stocks -> serving_tier.gold.valuation: "Period & Latest Stock Closes"
+ingestion_tier.market.yf_comms -> serving_tier.gold.comm_trend: "Daily Commodity Closes"
+ingestion_tier.market.nh3_spot -> serving_tier.gold.comm_trend: "Daily Ammonia Spot Prices"
+ingestion_tier.market.yf_fx -> serving_tier.gold.fx_rate: "Daily Exchange Rates"
+serving_tier.gold.fx_rate -> serving_tier.gold.valuation: "Currency Translation"
+
+serving_tier.gold -> serving_tier.genbi.wren_mdl: "DuckDB Semantic Models"
+serving_tier.genbi.wren_mdl <-> serving_tier.genbi.wren_ai: "MDL Schema & Vector Index"
+serving_tier.genbi.wren_ai -> serving_tier.genbi.wren_ui: "Text-to-SQL Analytics"
+serving_tier.genbi.chat_agent -> serving_tier.genbi.wren_mdl: "Tool: wren_ask_bi / wren_list_models"
+serving_tier.genbi.chat_agent -> serving_tier.gold: "Tool: duckdb_query (Direct SQL Verification)"

@@ -1,0 +1,25 @@
+name: officer_position
+table_reference:
+  schema: idxfin_silver
+  table: officer_position
+  catalog: idxfin
+description: Board of Directors (Direksi) and Board of Commissioners (Dewan Komisaris)
+  profiles extracted from Annual Report corporate governance chapters.
+columns:
+- name: issuer_id
+  type: varchar
+  description: IDX stock ticker symbol.
+- name: person_name
+  type: varchar
+  description: Full legal name and titles of the officer or board member.
+- name: role
+  type: varchar
+  description: Official title (e.g. Direktur Utama, Komisaris Utama, Komisaris Independen,
+    Direktur Keuangan).
+- name: is_independent
+  type: boolean
+  description: True if the commissioner is officially designated as Independent Commissioner
+    (Komisaris Independen).
+- name: source_page
+  type: integer
+  description: PDF page number where the governance profile was published.

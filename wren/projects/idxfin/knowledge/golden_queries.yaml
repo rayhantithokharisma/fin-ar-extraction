@@ -1,0 +1,106 @@
+queries:
+  # Example 1: Multi-Year Profitability Comparison
+  - question: "Berapa perbandingan laba bersih dan pendapatan NCKL tahun 2024 dan 2025?"
+    sql: |
+      SELECT 
+          issuer_id, 
+          fiscal_year, 
+          currency,
+          revenue, 
+          net_profit, 
+          net_profit_margin_pct
+      FROM idxfin_gold.financial_summary
+      WHERE issuer_id = 'NCKL' AND fiscal_year IN (2024, 2025)
+      ORDER BY fiscal_year ASC;
+
+  # Example 2: Banking Loan & Deposit Analysis
+  - question: "Show total loans, customer deposits, and LDR for BBCA in 2025."
+    sql: |
+      SELECT 
+          issuer_id, 
+          fiscal_year, 
+          currency,
+          bank_loans, 
+          bank_deposits, 
+          ROUND((bank_loans / NULLIF(bank_deposits, 0)) * 100, 2) AS ldr_pct
+      FROM idxfin_gold.financial_summary
+      WHERE issuer_id = 'BBCA' AND fiscal_year = 2025;
+
+  # Example 3: Sharia Balance Sheet Identity Check
+  - question: "Verify if BBCA's balance sheet balances with Temporary Syirkah Funds in 2025."
+    sql: |
+      SELECT 
+          issuer_id,
+          fiscal_year,
+          total_assets,
+          total_liabilities,
+          total_equity,
+          COALESCE(temporary_syirkah_funds, 0) AS syirkah_funds,
+          total_assets - (total_liabilities + total_equity + COALESCE(temporary_syirkah_funds, 0)) AS bs_diff
+      FROM idxfin_gold.financial_summary
+      WHERE issuer_id = 'BBCA' AND fiscal_year = 2025;
+
+  # Example 4: Stock Price Reaction Since Financial Period End
+  - question: "Which companies had the highest stock price gain since their 2025 financial period end?"
+    sql: |
+      SELECT 
+          issuer_id, 
+          fiscal_year, 
+          period_close_price, 
+          latest_close_price, 
+          price_change_since_period_pct
+      FROM idxfin_gold.market_valuation
+      WHERE fiscal_year = 2025 AND price_change_since_period_pct IS NOT NULL
+      ORDER BY price_change_since_period_pct DESC
+      LIMIT 10;
+
+  # Example 5: Cross-Asset Gold Commodity vs Miner Revenue
+  - question: "Compare monthly COMEX Gold average prices in 2025 with gold miner revenue."
+    sql: |
+      SELECT 
+          month_date, 
+          avg_close AS gold_avg_usd_oz, 
+          monthly_return_pct
+      FROM idxfin_gold.commodity_trend_monthly
+      WHERE symbol = 'GC=F' AND EXTRACT(year FROM month_date) = 2025
+      ORDER BY month_date ASC;
+
+  # Example 6: Corporate Governance & Independent Commissioners
+  - question: "Siapa saja Komisaris Independen di PT Vale atau MAPI?"
+    sql: |
+      SELECT 
+          issuer_id, 
+          person_name, 
+          role, 
+          source_page
+      FROM idxfin_silver.officer_position
+      WHERE is_independent = true AND issuer_id = 'MAPI'
+      ORDER BY person_name;
+
+  # Example 7: Audit Opinion and Audit Firm
+  - question: "Which audit firm audited NCKL in 2025 and what was the opinion?"
+    sql: |
+      SELECT 
+          issuer_id, 
+          fiscal_year, 
+          audit_firm, 
+          network, 
+          signing_partner, 
+          opinion, 
+          source_page
+      FROM idxfin_silver.audit_report
+      WHERE issuer_id = 'NCKL' AND fiscal_year = 2025;
+
+  # Example 8: Provenance Citation Verification
+  - question: "What was MAPI's total assets in 2025 and what PDF page proves it?"
+    sql: |
+      SELECT 
+          s.issuer_id, 
+          s.fiscal_year, 
+          s.total_assets, 
+          s.currency, 
+          p.total_assets_page
+      FROM idxfin_gold.financial_summary s
+      JOIN idxfin_gold.financial_summary_provenance p
+        ON s.issuer_id = p.issuer_id AND s.period_end = p.period_end
+      WHERE s.issuer_id = 'MAPI' AND s.fiscal_year = 2025;

@@ -1,0 +1,624 @@
+# taxonomy_seed.yaml — v0.3 (v0.2: operational core, cross-industry packs; v0.3: quarterly/annual aggregation rules)
+# Industry variance lives HERE, not in DDL. Loaded into idxfin_ref.* tables.
+# Concept id convention: <domain>.<area>.<name>
+#   fs.bs / fs.is / fs.oci / fs.cf / fs.soce  face statements (audited)
+#   note.<topic>                               note-level detail (audited)
+#   op.<industry>                              operational KPIs (narrative, unaudited)
+#   reg.<industry>                             regulator-defined ratios as reported (OJK formulas)
+#   nongaap.*                                  company-defined metrics, stored with definition_text
+#   esg.* / hr.*                               sustainability & workforce
+#   ext.<ticker>.<slug>                        issuer extensions for unmappable lines
+# Short keys: p = period (i instant, d duration); bal = dr/cr; t = data_type; tpl = templates
+
+version: 0.3.0
+
+tpl_sets:
+  ALL: &ALL [GENERAL, PROPERTY, INFRASTRUCTURE, BANK, FINANCING, SECURITIES, INSURANCE, INSURANCE_P117]
+  NONFIN: &NONFIN [GENERAL, PROPERTY, INFRASTRUCTURE]
+  FIN: &FIN [BANK, FINANCING, SECURITIES, INSURANCE, INSURANCE_P117]
+  INS: &INS [INSURANCE, INSURANCE_P117]
+
+templates:
+  - {id: GENERAL,        bs_format: current_noncurrent, cf_method: direct, desc: "Manufacturing, consumer, trading, mining, plantation, telco, retail, healthcare, tech"}
+  - {id: PROPERTY,       bs_format: detect_per_filing,  cf_method: direct, desc: "Property, real estate, construction; some present unclassified balance sheets"}
+  - {id: INFRASTRUCTURE, bs_format: current_noncurrent, cf_method: direct, desc: "Utilities, toll roads, transport, telecom infra"}
+  - {id: BANK,           bs_format: liquidity,          cf_method: direct, desc: "Conventional and sharia banks (is_sharia overlay)"}
+  - {id: FINANCING,      bs_format: liquidity,          cf_method: direct, desc: "Multifinance / leasing"}
+  - {id: SECURITIES,     bs_format: liquidity,          cf_method: direct, desc: "Brokers, investment managers"}
+  - {id: INSURANCE,      bs_format: liquidity,          cf_method: direct, desc: "Insurers before PSAK 117"}
+  - {id: INSURANCE_P117, bs_format: liquidity,          cf_method: direct, desc: "Insurers under PSAK 117 (FY2025+)"}
+sharia_overlay:
+  adds_concepts: [fs.bs.sharia.temporary_syirkah_funds]
+  adds_axes: [sharia_contract]
+  identity_change: "assets = liabilities + temporary_syirkah_funds + equity"
+
+accounting_regimes:
+  - {id: PRE_2020,        effective_to: 2019-12-31, series_break: false, desc: "PSAK 55/50/60 instruments, PSAK 23 revenue, PSAK 30 operating leases off balance sheet"}
+  - {id: PSAK71_72_73,    effective_from: 2020-01-01, series_break: true, desc: "ECL, contract-based revenue, leases on BS (ROU + lease liabilities; EBITDA step-up)"}
+  - {id: PSAK_RENUMBERED, effective_from: 2024-01-01, series_break: false, desc: "IFRS-aligned numbering (71->109, 72->115, 73->116, 5->108); reference mapping only"}
+  - {id: PSAK117,         effective_from: 2025-01-01, series_break: true, templates: [INSURANCE_P117], desc: "Insurance contracts: insurance revenue, service result, CSM"}
+
+axes:
+  consolidation_scope:   {source: standard, members: [consolidated, parent_only, combined]}
+  attribution:           {source: standard, members: [owners_of_parent, non_controlling_interests]}
+  counterparty_relation: {source: standard, members: [related_party, third_party]}
+  counterparty:          {source: fk_counterparty}
+  instrument:            {source: fk_instrument}
+  facility:              {source: fk_facility}
+  segment_business:      {source: issuer_extensible, std: [coal, nickel, copper_gold, gold, tin, bauxite_alumina, oil_gas, mining_services, plantation, cement, retail, consumer, property_development, recurring_property, toll_road, power, telco, banking_corporate, banking_retail, other, unallocated, elimination]}
+  segment_geography:     {source: issuer_extensible, std: [domestic, export, asia, china, india, japan, korea, europe, americas, other, elimination]}
+  currency_denomination: {source: iso4217}
+  maturity_bucket:       {source: standard, members: [current, non_current, within_1y, 1_to_2y, 2_to_5y, over_5y]}
+  aging_bucket:          {source: standard, members: [not_past_due, pd_1_30, pd_31_60, pd_61_90, pd_91_180, pd_over_180]}
+  movement:              {source: standard, members: [opening, additions, business_combination, disposals, transfers, charge, impairment, reversal, write_off, fx_translation, remeasurement, closing]}
+  asset_class:           {source: standard, members: [land, land_rights, buildings, infrastructure, machinery, heavy_equipment, vehicles, vessels, office_equipment, construction_in_progress, bearer_plants, mine_properties, other]}
+  inventory_category:    {source: standard, members: [raw_materials, work_in_process, finished_goods, spare_parts, merchandise, fuel, ore_stockpile, excise_stamps, re_land, re_under_development, re_completed_units, other]}
+  equity_component:      {source: standard, members: [share_capital, apic, treasury_shares, re_appropriated, re_unappropriated, fx_translation_reserve, revaluation_surplus, hedge_reserve, fvoci_reserve, remeasurement_db, share_based_payment_reserve, other_reserves, nci, total]}
+  ecl_stage:             {source: standard, members: [stage_1, stage_2, stage_3, poci]}
+  fv_level:              {source: standard, members: [level_1, level_2, level_3]}
+  fi_category:           {source: standard, members: [amortized_cost, fvoci, fvtpl]}
+  tax_component:         {source: standard, members: [current, deferred]}
+  cost_component:        {source: issuer_extensible, std: [raw_materials, fuel, contractor_mining, royalties, labour, depreciation, freight, electricity, rent, marketing, reagents, advertising_promotion, research_development, excise, royalties_license, packaging, other]}
+  deposit_type:          {source: standard, members: [current_account, savings, time_deposit]}
+  loan_segment:          {source: issuer_extensible, std: [corporate, commercial, sme, micro, consumer, mortgage, auto, credit_card, payroll]}
+  sharia_contract:       {source: standard, members: [murabahah, mudharabah, musyarakah, ijarah, istishna, qardh, salam]}
+  product:               {source: issuer_extensible}
+  commodity:             {source: standard, members: [coal, nickel, copper, gold, silver, tin, bauxite, alumina, cobalt, oil, gas, cpo, pko, rubber, cement, electricity]}
+  market:                {source: standard, members: [domestic, domestic_dmo, export]}
+  basis:                 {source: standard, members: [gross_100pct, attributable]}
+  moisture_basis:        {source: standard, members: [wet, dry]}
+  metal_basis:           {source: standard, members: [contained, payable]}
+  cv_basis:              {source: standard, members: [gar, nar, adb]}
+  reserve_class:         {source: standard, members: [proved, probable, measured, indicated, inferred, 1p, 2p, 3p, 2c]}
+  reporting_code:        {source: standard, members: [jorc, kcmi, prms, ni43_101, other]}
+  crop_maturity:         {source: standard, members: [mature, immature]}
+  plantation_scheme:     {source: standard, members: [nucleus, plasma]}
+  risk_variable:         {source: standard, members: [usd_idr, other_fx, interest_rate, commodity_price]}
+  sensitivity_shift:     {source: issuer_extensible, note: "e.g. +1pct, -10pct, +100bp"}
+  employee_level:        {source: issuer_extensible}
+  employment_type:       {source: standard, members: [permanent, contract, outsourced]}
+  energy_source:         {source: issuer_extensible}
+  # v0.2 cross-industry axes
+  channel:               {source: issuer_extensible, std: [modern_trade, general_trade, e_commerce, own_stores, wholesale_distributor, hospitals, pharmacies, clinics, government_procurement, direct_b2b, export_agent, other]}
+  customer_type:         {source: standard, members: [government, soe, private_corporate, retail_consumer, related_party]}
+  payer:                 {source: standard, members: [bpjs_jkn, private_insurance, corporate, out_of_pocket, government_other]}
+  store_format:          {source: issuer_extensible, std: [department_store, specialty_store, supermarket, hypermarket, minimarket, convenience, pharmacy, cafe_restaurant, outlet, online_only, other]}
+  brand:                 {source: issuer_extensible}
+  product_category_pharma: {source: standard, members: [prescription_branded, branded_generic, unbranded_generic, otc, consumer_health, nutrition, herbal_supplement, medical_devices, api, distribution]}
+  raw_material:          {source: issuer_extensible, std: [api, wheat, sugar, milk_powder, cpo, corn, soybean_meal, resin, steel_scrap, pulp, cotton, tobacco_leaf, clove, other]}
+  material_origin:       {source: standard, members: [domestic, imported]}
+  recognition_timing:    {source: standard, members: [point_in_time, over_time]}
+  deduction_type:        {source: standard, members: [excise, trade_discounts_rebates, returns, customer_incentives, vat_other_taxes, other]}
+  intangible_class:      {source: standard, members: [software, development_costs, licenses_brands, customer_relationships, concession_rights, mining_rights, other]}
+  facility_kind:         {source: standard, members: [mine, smelter_refinery, factory, pharma_plant, warehouse_dc, store, hospital, data_center, hotel, power_plant, mill, farm_hatchery, other]}
+  vehicle_type:          {source: issuer_extensible, std: [passenger_car, commercial_vehicle, motorcycle, heavy_equipment, haul_truck, excavator, vessel_tug_barge, vessel_tanker, vessel_bulk, aircraft, other]}
+
+units:
+  - {id: IDR, dim: currency}
+  - {id: USD, dim: currency}
+  - {id: shares, dim: shares}
+  - {id: pure, dim: pure, to_base: 1}
+  - {id: pct, dim: pure, to_base: 0.01}
+  - {id: bp, dim: pure, to_base: 0.0001}
+  - {id: t, dim: mass, to_base: 1}
+  - {id: kt, dim: mass, to_base: 1000}
+  - {id: Mt, dim: mass, to_base: 1000000}
+  - {id: dmt, dim: mass, to_base: 1, note: dry metric tonne}
+  - {id: wmt, dim: mass_wet, note: "wet tonne; no auto-conversion to dmt without stated moisture"}
+  - {id: lb, dim: mass, to_base: 0.000453592}
+  - {id: oz, dim: mass, to_base: 0.0000311035, note: troy ounce}
+  - {id: g_per_t, dim: grade, to_base: 1}
+  - {id: bcm, dim: volume, to_base: 1}
+  - {id: Mbcm, dim: volume, to_base: 1000000}
+  - {id: bbl, dim: volume_liquid}
+  - {id: boepd, dim: energy_equiv_rate}
+  - {id: mmboe, dim: energy_equiv}
+  - {id: mmbtu, dim: energy_heat}
+  - {id: MW, dim: power, to_base: 1}
+  - {id: GWh, dim: energy, to_base: 1000, base_unit: MWh}
+  - {id: ha, dim: area, to_base: 1}
+  - {id: sqm, dim: area, to_base: 0.0001}
+  - {id: kcal_per_kg, dim: calorific}
+  - {id: bcm_per_t, dim: strip_ratio}
+  - {id: t_per_ha, dim: yield}
+  - {id: usd_per_t, dim: price_per_mass, currency: USD}
+  - {id: usd_per_lb, dim: price_per_mass, currency: USD}
+  - {id: usd_per_oz, dim: price_per_mass, currency: USD}
+  - {id: usd_per_bbl, dim: price_per_volume, currency: USD}
+  - {id: usd_per_boe, dim: price_per_energy_equiv, currency: USD}
+  - {id: idr_per_kg, dim: price_per_mass, currency: IDR}
+  - {id: idr_per_month, dim: price_per_time, currency: IDR}
+  - {id: count, dim: count}
+  - {id: vehicles_per_day, dim: traffic}
+  - {id: tco2e, dim: emissions}
+  - {id: GJ, dim: energy_heat}
+  - {id: m3, dim: volume}
+  - {id: units, dim: count, to_base: 1, note: "physical units sold/produced (vehicles, devices)"}
+  - {id: bn_sticks, dim: count, to_base: 1000000000}
+  - {id: kl, dim: volume_liquid, to_base: 1, base_unit: kl}
+  - {id: liters, dim: volume_liquid, to_base: 0.001, base_unit: kl}
+  - {id: teu, dim: container}
+  - {id: dwt, dim: mass, to_base: 1, note: vessel deadweight tonnage}
+  - {id: rooms, dim: count, to_base: 1}
+  - {id: beds, dim: count, to_base: 1}
+  - {id: passengers, dim: count, to_base: 1}
+  - {id: seat_km, dim: transport_capacity}
+  - {id: passenger_km, dim: transport_capacity}
+  - {id: kWh, dim: energy, to_base: 0.001, base_unit: MWh}
+  - {id: usd_per_day, dim: price_per_time, currency: USD}
+  - {id: idr_per_unit, dim: price_per_unit, currency: IDR}
+  - {id: idr_per_transaction, dim: price_per_unit, currency: IDR}
+  - {id: idr_per_room_night, dim: price_per_unit, currency: IDR}
+  - {id: idr_per_sqm, dim: price_per_area, currency: IDR}
+
+# How duration concepts aggregate across periods -> ref.concept.period_aggregation.
+# Drives which facts may be subtracted (discrete quarters) or summed (TTM).
+period_aggregation:
+  default_by_data_type: {monetary: additive, quantity: additive, count: additive, shares: non_additive, per_share: non_additive, ratio: non_additive, text: non_additive}
+  kpi_default: additive
+  non_additive_units: [pct, pure, bp, g_per_t, kcal_per_kg, bcm_per_t, t_per_ha, boepd, vehicles_per_day, usd_per_t, usd_per_lb, usd_per_oz, usd_per_bbl, usd_per_boe, usd_per_day, idr_per_kg, idr_per_month, idr_per_unit, idr_per_transaction, idr_per_room_night, idr_per_sqm]
+  overrides:
+    note.eps.weighted_average_shares: non_additive
+
+# Condensed interim notes: these are expected only in annual filings (ref.template_concept.expected_in).
+annual_only_expectations: [note.ppe.gross_carrying, note.ppe.accumulated_depreciation, note.intangibles.gross_carrying, note.receivables.aging, note.employee_benefits.discount_rate, note.fin_risk.sensitivity_profit, note.fair_value.hierarchy, note.major_customer.revenue]
+
+# ------------------------------------------------------------------ core financial concepts
+concepts:
+  # Balance sheet — general
+  - {id: fs.bs.cash_and_equivalents,   en: Cash and cash equivalents,  id_label: Kas dan setara kas,              p: i, bal: dr, t: monetary, tpl: *ALL}
+  - {id: fs.bs.short_term_investments, en: Short-term investments,     id_label: Investasi jangka pendek,         p: i, bal: dr, t: monetary, tpl: *NONFIN}
+  - {id: fs.bs.trade_receivables,      en: Trade receivables,          id_label: Piutang usaha,                   p: i, bal: dr, t: monetary, tpl: *NONFIN, axes: [counterparty_relation, currency_denomination]}
+  - {id: fs.bs.other_receivables,      en: Other receivables,          id_label: Piutang lain-lain,               p: i, bal: dr, t: monetary, tpl: *ALL, axes: [counterparty_relation]}
+  - {id: fs.bs.inventories,            en: Inventories,                id_label: Persediaan,                      p: i, bal: dr, t: monetary, tpl: *NONFIN}
+  - {id: fs.bs.advances_prepayments,   en: Advances and prepayments,   id_label: Uang muka dan biaya dibayar dimuka, p: i, bal: dr, t: monetary, tpl: *ALL, axes: [maturity_bucket]}
+  - {id: fs.bs.prepaid_taxes,          en: Prepaid taxes,              id_label: Pajak dibayar dimuka,            p: i, bal: dr, t: monetary, tpl: *ALL}
+  - {id: fs.bs.total_current_assets,   en: Total current assets,       id_label: Jumlah aset lancar,              p: i, bal: dr, t: monetary, tpl: *NONFIN}
+  - {id: fs.bs.ppe_net,                en: Property, plant and equipment, id_label: Aset tetap,                   p: i, bal: dr, t: monetary, tpl: *ALL}
+  - {id: fs.bs.right_of_use_assets,    en: Right-of-use assets,        id_label: Aset hak-guna,                   p: i, bal: dr, t: monetary, tpl: *ALL, regimes: [PSAK71_72_73, PSAK_RENUMBERED]}
+  - {id: fs.bs.investment_property,    en: Investment property,        id_label: Properti investasi,              p: i, bal: dr, t: monetary, tpl: *ALL}
+  - {id: fs.bs.goodwill,               en: Goodwill,                   id_label: Goodwill,                        p: i, bal: dr, t: monetary, tpl: *ALL}
+  - {id: fs.bs.intangible_assets,      en: Intangible assets,          id_label: Aset takberwujud,                p: i, bal: dr, t: monetary, tpl: *ALL, axes: [intangible_class]}
+  - {id: fs.bs.investments_associates_jv, en: Investments in associates and JVs, id_label: Investasi pada entitas asosiasi dan ventura bersama, p: i, bal: dr, t: monetary, tpl: *ALL}
+  - {id: fs.bs.deferred_tax_assets,    en: Deferred tax assets,        id_label: Aset pajak tangguhan,            p: i, bal: dr, t: monetary, tpl: *ALL}
+  - {id: fs.bs.total_non_current_assets, en: Total non-current assets, id_label: Jumlah aset tidak lancar,        p: i, bal: dr, t: monetary, tpl: *NONFIN}
+  - {id: fs.bs.total_assets,           en: Total assets,               id_label: Jumlah aset,                     p: i, bal: dr, t: monetary, tpl: *ALL}
+  # Balance sheet — industry-specific assets
+  - {id: fs.bs.mining.exploration_evaluation_assets, en: Exploration and evaluation assets, id_label: Aset eksplorasi dan evaluasi, p: i, bal: dr, t: monetary, tpl: [GENERAL]}
+  - {id: fs.bs.mining.mine_properties, en: Mine properties,            id_label: Properti pertambangan,           p: i, bal: dr, t: monetary, tpl: [GENERAL]}
+  - {id: fs.bs.mining.deferred_stripping, en: Deferred stripping costs, id_label: Biaya pengupasan tanah tangguhan, p: i, bal: dr, t: monetary, tpl: [GENERAL]}
+  - {id: fs.bs.plantation.bearer_plants, en: Bearer plants,            id_label: Tanaman produktif,               p: i, bal: dr, t: monetary, tpl: [GENERAL], axes: [crop_maturity]}
+  - {id: fs.bs.biological_assets,     en: Biological assets,          id_label: Aset biologis,                   p: i, bal: dr, t: monetary, tpl: [GENERAL], note: "Plantation produce, poultry breeders, livestock"}
+  - {id: fs.bs.plantation.plasma_receivables, en: Plasma receivables,  id_label: Piutang plasma,                  p: i, bal: dr, t: monetary, tpl: [GENERAL]}
+  - {id: fs.bs.contract_assets,        en: Contract assets,            id_label: Aset kontrak / tagihan bruto kepada pemberi kerja, p: i, bal: dr, t: monetary, tpl: *NONFIN, note: "Construction, EPC, IT services, over-time revenue"}
+  - {id: fs.bs.retention_receivables,  en: Retention receivables,      id_label: Piutang retensi,                 p: i, bal: dr, t: monetary, tpl: [PROPERTY, INFRASTRUCTURE, GENERAL]}
+  - {id: fs.bs.property.real_estate_inventories, en: Real estate inventories, id_label: Persediaan real estat,    p: i, bal: dr, t: monetary, tpl: [PROPERTY], axes: [inventory_category, maturity_bucket]}
+  - {id: fs.bs.bank.placements,        en: Placements with BI and other banks, id_label: Penempatan pada Bank Indonesia dan bank lain, p: i, bal: dr, t: monetary, tpl: [BANK]}
+  - {id: fs.bs.bank.marketable_securities, en: Marketable securities,  id_label: Efek-efek,                       p: i, bal: dr, t: monetary, tpl: [BANK], axes: [fi_category]}
+  - {id: fs.bs.bank.government_bonds,  en: Government bonds,           id_label: Obligasi pemerintah,             p: i, bal: dr, t: monetary, tpl: [BANK]}
+  - {id: fs.bs.bank.loans_gross,       en: Loans (gross),              id_label: Kredit yang diberikan,           p: i, bal: dr, t: monetary, tpl: [BANK], axes: [loan_segment, ecl_stage, currency_denomination, counterparty_relation]}
+  - {id: fs.bs.bank.loans_ecl_allowance, en: Allowance for impairment losses on loans, id_label: Cadangan kerugian penurunan nilai kredit, p: i, bal: cr, t: monetary, tpl: [BANK], axes: [ecl_stage]}
+  - {id: fs.bs.sharia.financing_receivables, en: Sharia financing receivables, id_label: Piutang dan pembiayaan syariah, p: i, bal: dr, t: monetary, tpl: [BANK, FINANCING], axes: [sharia_contract]}
+  - {id: fs.bs.fin.consumer_financing_receivables, en: Consumer financing receivables, id_label: Piutang pembiayaan konsumen, p: i, bal: dr, t: monetary, tpl: [FINANCING]}
+  - {id: fs.bs.ins.reinsurance_contract_assets, en: Reinsurance contract assets, id_label: Aset kontrak reasuransi, p: i, bal: dr, t: monetary, tpl: [INSURANCE_P117]}
+  # Liabilities
+  - {id: fs.bs.trade_payables,         en: Trade payables,             id_label: Utang usaha,                     p: i, bal: cr, t: monetary, tpl: *NONFIN, axes: [counterparty_relation, currency_denomination]}
+  - {id: fs.bs.short_term_bank_loans,  en: Short-term bank loans,      id_label: Utang bank jangka pendek,        p: i, bal: cr, t: monetary, tpl: *ALL}
+  - {id: fs.bs.lt_borrowings_current,  en: Current maturities of long-term borrowings, id_label: Bagian lancar pinjaman jangka panjang, p: i, bal: cr, t: monetary, tpl: *NONFIN}
+  - {id: fs.bs.lt_borrowings_noncurrent, en: Long-term borrowings, net of current maturities, id_label: Pinjaman jangka panjang setelah dikurangi bagian lancar, p: i, bal: cr, t: monetary, tpl: *ALL}
+  - {id: fs.bs.bonds_payable,          en: Bonds / sukuk / MTN payable, id_label: Utang obligasi dan sukuk,       p: i, bal: cr, t: monetary, tpl: *ALL, axes: [maturity_bucket]}
+  - {id: fs.bs.lease_liabilities,      en: Lease liabilities,          id_label: Liabilitas sewa,                 p: i, bal: cr, t: monetary, tpl: *ALL, axes: [maturity_bucket]}
+  - {id: fs.bs.excise_payable,         en: Excise payable,             id_label: Utang cukai,                     p: i, bal: cr, t: monetary, tpl: [GENERAL], note: "Tobacco, alcohol, sugary drinks if applicable"}
+  - {id: fs.bs.taxes_payable,          en: Taxes payable,              id_label: Utang pajak,                     p: i, bal: cr, t: monetary, tpl: *ALL}
+  - {id: fs.bs.accrued_expenses,       en: Accrued expenses,           id_label: Beban akrual,                    p: i, bal: cr, t: monetary, tpl: *ALL}
+  - {id: fs.bs.contract_liabilities,   en: Contract liabilities / customer advances, id_label: Liabilitas kontrak / uang muka pelanggan, p: i, bal: cr, t: monetary, tpl: *NONFIN, axes: [maturity_bucket]}
+  - {id: fs.bs.employee_benefit_liabilities, en: Employee benefit liabilities, id_label: Liabilitas imbalan kerja, p: i, bal: cr, t: monetary, tpl: *ALL}
+  - {id: fs.bs.mining.rehabilitation_closure_provision, en: Provision for mine rehabilitation and closure, id_label: Provisi reklamasi dan penutupan tambang, p: i, bal: cr, t: monetary, tpl: [GENERAL]}
+  - {id: fs.bs.deferred_tax_liabilities, en: Deferred tax liabilities, id_label: Liabilitas pajak tangguhan,     p: i, bal: cr, t: monetary, tpl: *ALL}
+  - {id: fs.bs.total_current_liabilities, en: Total current liabilities, id_label: Jumlah liabilitas jangka pendek, p: i, bal: cr, t: monetary, tpl: *NONFIN}
+  - {id: fs.bs.total_liabilities,      en: Total liabilities,          id_label: Jumlah liabilitas,               p: i, bal: cr, t: monetary, tpl: *ALL}
+  - {id: fs.bs.bank.customer_deposits, en: Deposits from customers,    id_label: Simpanan nasabah,                p: i, bal: cr, t: monetary, tpl: [BANK], axes: [deposit_type, counterparty_relation, currency_denomination]}
+  - {id: fs.bs.bank.deposits_other_banks, en: Deposits from other banks, id_label: Simpanan dari bank lain,        p: i, bal: cr, t: monetary, tpl: [BANK]}
+  - {id: fs.bs.ins.insurance_contract_liabilities, en: Insurance contract liabilities, id_label: Liabilitas kontrak asuransi, p: i, bal: cr, t: monetary, tpl: [INSURANCE_P117]}
+  - {id: fs.bs.ins_legacy.technical_reserves, en: Technical reserves (pre-PSAK 117), id_label: Cadangan teknis, p: i, bal: cr, t: monetary, tpl: [INSURANCE]}
+  - {id: fs.bs.sharia.temporary_syirkah_funds, en: Temporary syirkah funds, id_label: Dana syirkah temporer,       p: i, bal: cr, t: monetary, tpl: [BANK, FINANCING, INSURANCE, INSURANCE_P117], sharia_only: true}
+  # Equity
+  - {id: fs.bs.share_capital,          en: Share capital,              id_label: Modal saham,                     p: i, bal: cr, t: monetary, tpl: *ALL}
+  - {id: fs.bs.additional_paid_in_capital, en: Additional paid-in capital, id_label: Tambahan modal disetor,      p: i, bal: cr, t: monetary, tpl: *ALL}
+  - {id: fs.bs.treasury_shares,        en: Treasury shares,            id_label: Saham treasuri,                  p: i, bal: dr, t: monetary, tpl: *ALL}
+  - {id: fs.bs.retained_earnings,      en: Retained earnings,          id_label: Saldo laba,                      p: i, bal: cr, t: monetary, tpl: *ALL, axes: [equity_component]}
+  - {id: fs.bs.other_equity_components, en: Other equity components,   id_label: Komponen ekuitas lainnya,        p: i, bal: cr, t: monetary, tpl: *ALL, axes: [equity_component]}
+  - {id: fs.bs.equity_attributable_owners, en: Equity attributable to owners of the parent, id_label: Ekuitas yang dapat diatribusikan kepada pemilik entitas induk, p: i, bal: cr, t: monetary, tpl: *ALL}
+  - {id: fs.bs.non_controlling_interests, en: Non-controlling interests, id_label: Kepentingan nonpengendali,      p: i, bal: cr, t: monetary, tpl: *ALL}
+  - {id: fs.bs.total_equity,           en: Total equity,               id_label: Jumlah ekuitas,                  p: i, bal: cr, t: monetary, tpl: *ALL}
+  - {id: fs.bs.issued_shares,          en: Issued and fully paid shares, id_label: Saham ditempatkan dan disetor penuh, p: i, t: shares, tpl: *ALL}
+
+  # Income statement
+  - {id: fs.is.revenue,                en: Revenue,                    id_label: Pendapatan,                      p: d, bal: cr, t: monetary, tpl: *NONFIN}
+  - {id: fs.is.cost_of_revenue,        en: Cost of revenue,            id_label: Beban pokok pendapatan,          p: d, bal: dr, t: monetary, tpl: *NONFIN}
+  - {id: fs.is.gross_profit,           en: Gross profit,               id_label: Laba bruto,                      p: d, bal: cr, t: monetary, tpl: *NONFIN}
+  - {id: fs.is.selling_expenses,       en: Selling expenses,           id_label: Beban penjualan,                 p: d, bal: dr, t: monetary, tpl: *NONFIN}
+  - {id: fs.is.general_admin_expenses, en: General and administrative expenses, id_label: Beban umum dan administrasi, p: d, bal: dr, t: monetary, tpl: *ALL}
+  - {id: fs.is.other_operating_income_expense, en: Other operating income (expenses), id_label: Pendapatan (beban) operasi lain, p: d, bal: cr, t: monetary, tpl: *ALL}
+  - {id: fs.is.operating_profit,       en: Operating profit,           id_label: Laba usaha,                      p: d, bal: cr, t: monetary, tpl: *NONFIN, requirement: optional, note: "Not all issuers present this subtotal"}
+  - {id: fs.is.finance_income,         en: Finance income,             id_label: Pendapatan keuangan,             p: d, bal: cr, t: monetary, tpl: *NONFIN}
+  - {id: fs.is.finance_costs,          en: Finance costs,              id_label: Beban keuangan,                  p: d, bal: dr, t: monetary, tpl: *NONFIN}
+  - {id: fs.is.share_of_profit_associates, en: Share of profit of associates and JVs, id_label: Bagian atas laba entitas asosiasi dan ventura bersama, p: d, bal: cr, t: monetary, tpl: *ALL}
+  - {id: fs.is.profit_before_tax,      en: Profit before income tax,   id_label: Laba sebelum pajak penghasilan,  p: d, bal: cr, t: monetary, tpl: *ALL}
+  - {id: fs.is.income_tax_expense,     en: Income tax expense,         id_label: Beban pajak penghasilan,         p: d, bal: dr, t: monetary, tpl: *ALL, axes: [tax_component]}
+  - {id: fs.is.profit_for_the_period,  en: Profit for the period,      id_label: Laba tahun/periode berjalan,     p: d, bal: cr, t: monetary, tpl: *ALL}
+  - {id: fs.is.profit_attributable,    en: Profit attributable to,     id_label: Laba yang dapat diatribusikan kepada, p: d, bal: cr, t: monetary, tpl: *ALL, axes: [attribution]}
+  - {id: fs.is.eps_basic,              en: Basic earnings per share,   id_label: Laba per saham dasar,            p: d, t: per_share, tpl: *ALL}
+  - {id: fs.is.eps_diluted,            en: Diluted earnings per share, id_label: Laba per saham dilusian,         p: d, t: per_share, tpl: *ALL}
+  - {id: fs.oci.oci_total,             en: Other comprehensive income, id_label: Penghasilan komprehensif lain,   p: d, bal: cr, t: monetary, tpl: *ALL, axes: [equity_component]}
+  - {id: fs.oci.total_comprehensive_income, en: Total comprehensive income, id_label: Jumlah penghasilan komprehensif, p: d, bal: cr, t: monetary, tpl: *ALL, axes: [attribution]}
+  - {id: fs.is.bank.interest_income,   en: Interest income,            id_label: Pendapatan bunga,                p: d, bal: cr, t: monetary, tpl: [BANK, FINANCING]}
+  - {id: fs.is.bank.interest_expense,  en: Interest expense,           id_label: Beban bunga,                     p: d, bal: dr, t: monetary, tpl: [BANK, FINANCING]}
+  - {id: fs.is.bank.net_interest_income, en: Net interest income,      id_label: Pendapatan bunga bersih,         p: d, bal: cr, t: monetary, tpl: [BANK]}
+  - {id: fs.is.bank.fee_commission_income, en: Fees and commissions income, id_label: Pendapatan provisi dan komisi, p: d, bal: cr, t: monetary, tpl: [BANK]}
+  - {id: fs.is.bank.impairment_expense, en: Allowance for impairment losses (expense), id_label: Beban cadangan kerugian penurunan nilai, p: d, bal: dr, t: monetary, tpl: [BANK, FINANCING]}
+  - {id: fs.is.ins.insurance_revenue,  en: Insurance revenue,          id_label: Pendapatan asuransi,             p: d, bal: cr, t: monetary, tpl: [INSURANCE_P117]}
+  - {id: fs.is.ins.insurance_service_expenses, en: Insurance service expenses, id_label: Beban jasa asuransi,     p: d, bal: dr, t: monetary, tpl: [INSURANCE_P117]}
+  - {id: fs.is.ins.insurance_service_result, en: Insurance service result, id_label: Hasil jasa asuransi,         p: d, bal: cr, t: monetary, tpl: [INSURANCE_P117]}
+  - {id: fs.is.ins_legacy.net_premium_income, en: Net premium income (pre-PSAK 117), id_label: Pendapatan premi neto, p: d, bal: cr, t: monetary, tpl: [INSURANCE]}
+
+  # Cash flow (direct method)
+  - {id: fs.cf.receipts_from_customers, en: Cash receipts from customers, id_label: Penerimaan kas dari pelanggan, p: d, bal: dr, t: monetary, tpl: *NONFIN}
+  - {id: fs.cf.payments_suppliers_employees, en: Cash paid to suppliers and employees, id_label: Pembayaran kas kepada pemasok dan karyawan, p: d, bal: cr, t: monetary, tpl: *NONFIN}
+  - {id: fs.cf.interest_paid,          en: Interest paid,              id_label: Pembayaran bunga,                p: d, bal: cr, t: monetary, tpl: *ALL}
+  - {id: fs.cf.income_taxes_paid,      en: Income taxes paid,          id_label: Pembayaran pajak penghasilan,    p: d, bal: cr, t: monetary, tpl: *ALL}
+  - {id: fs.cf.net_cash_operating,     en: Net cash from operating activities, id_label: Kas neto diperoleh dari aktivitas operasi, p: d, bal: dr, t: monetary, tpl: *ALL}
+  - {id: fs.cf.acquisition_ppe,        en: Acquisition of fixed assets, id_label: Perolehan aset tetap,           p: d, bal: cr, t: monetary, tpl: *ALL}
+  - {id: fs.cf.additions_mine_properties_ee, en: Additions to mine properties and E&E assets, id_label: Penambahan properti pertambangan dan aset eksplorasi, p: d, bal: cr, t: monetary, tpl: [GENERAL]}
+  - {id: fs.cf.acquisition_intangibles, en: Acquisition of intangible assets, id_label: Perolehan aset takberwujud, p: d, bal: cr, t: monetary, tpl: *ALL}
+  - {id: fs.cf.acquisition_subsidiaries_net, en: Acquisition of subsidiaries, net of cash acquired, id_label: Akuisisi entitas anak, setelah dikurangi kas yang diperoleh, p: d, bal: cr, t: monetary, tpl: *ALL}
+  - {id: fs.cf.net_cash_investing,     en: Net cash used in investing activities, id_label: Kas neto digunakan untuk aktivitas investasi, p: d, bal: dr, t: monetary, tpl: *ALL}
+  - {id: fs.cf.proceeds_borrowings,    en: Proceeds from borrowings,   id_label: Penerimaan pinjaman,             p: d, bal: dr, t: monetary, tpl: *ALL}
+  - {id: fs.cf.repayment_borrowings,   en: Repayment of borrowings,    id_label: Pembayaran pinjaman,             p: d, bal: cr, t: monetary, tpl: *ALL}
+  - {id: fs.cf.lease_payments,         en: Payment of lease liabilities, id_label: Pembayaran liabilitas sewa,    p: d, bal: cr, t: monetary, tpl: *ALL}
+  - {id: fs.cf.dividends_paid,         en: Dividends paid,             id_label: Pembayaran dividen,              p: d, bal: cr, t: monetary, tpl: *ALL, axes: [attribution]}
+  - {id: fs.cf.share_buyback,          en: Purchase of treasury shares, id_label: Pembelian saham treasuri,       p: d, bal: cr, t: monetary, tpl: *ALL}
+  - {id: fs.cf.net_cash_financing,     en: Net cash from financing activities, id_label: Kas neto dari aktivitas pendanaan, p: d, bal: dr, t: monetary, tpl: *ALL}
+  - {id: fs.cf.net_change_cash,        en: Net increase (decrease) in cash, id_label: Kenaikan (penurunan) neto kas dan setara kas, p: d, bal: dr, t: monetary, tpl: *ALL}
+  - {id: fs.cf.fx_effect_cash,         en: Effect of exchange rate changes on cash, id_label: Efek perubahan kurs terhadap kas, p: d, bal: dr, t: monetary, tpl: *ALL}
+  - {id: fs.cf.cash_beginning,         en: Cash at beginning of period, id_label: Kas dan setara kas awal tahun,  p: i, bal: dr, t: monetary, tpl: *ALL}
+  - {id: fs.cf.cash_ending,            en: Cash at end of period,      id_label: Kas dan setara kas akhir tahun,  p: i, bal: dr, t: monetary, tpl: *ALL}
+
+  # Notes (audited detail; mostly dimensional)
+  - {id: note.ppe.gross_carrying,      p: i_and_movement, t: monetary, axes: [asset_class, movement]}
+  - {id: note.ppe.accumulated_depreciation, p: i_and_movement, t: monetary, axes: [asset_class, movement]}
+  - {id: note.rou.depreciation,        p: d, t: monetary, axes: [asset_class]}
+  - {id: note.intangibles.amortization, p: d, t: monetary}
+  - {id: note.mine_properties.amortization, p: d, t: monetary}
+  - {id: note.borrowings.outstanding,  p: i, t: monetary, axes: [instrument, counterparty, currency_denomination, maturity_bucket]}
+  - {id: note.segment.revenue,         p: d, t: monetary, axes: [segment_business, segment_geography]}
+  - {id: note.segment.profit,          p: d, t: monetary, axes: [segment_business]}
+  - {id: note.segment.assets,          p: i, t: monetary, axes: [segment_business], requirement: optional, note: "Only if reported to the chief operating decision maker"}
+  - {id: note.revenue.disaggregation,  p: d, t: monetary, axes: [product, product_category_pharma, market, channel, customer_type, payer, brand, recognition_timing, segment_geography, counterparty]}
+  - {id: note.major_customer.revenue,  p: d, t: monetary, axes: [counterparty], note: ">10% revenue customers (PSAK 108 / ex-PSAK 5); identity may be undisclosed"}
+  - {id: note.major_supplier.purchases, p: d, t: monetary, axes: [counterparty]}
+  - {id: note.receivables.aging,       p: i, t: monetary, axes: [aging_bucket, counterparty_relation, customer_type, payer]}
+  - {id: note.receivables.ecl_allowance, p: i_and_movement, t: monetary, axes: [movement, ecl_stage]}
+  - {id: note.inventory.by_category,   p: i, t: monetary, axes: [inventory_category]}
+  - {id: note.inventory.writedown_allowance, p: i_and_movement, t: monetary, axes: [movement]}
+  - {id: note.cogs.breakdown,          p: d, t: monetary, axes: [cost_component]}
+  - {id: note.opex.breakdown,          p: d, t: monetary, axes: [cost_component]}
+  - {id: note.employee_benefits.discount_rate, p: i, t: ratio, unit: pct}
+  - {id: note.employee_benefits.salary_growth_rate, p: i, t: ratio, unit: pct}
+  - {id: note.fin_risk.sensitivity_profit, p: d, t: monetary, axes: [risk_variable, sensitivity_shift]}
+  - {id: note.fair_value.hierarchy,    p: i, t: monetary, axes: [fv_level]}
+  - {id: note.related_party.balance,   p: i, t: monetary, axes: [counterparty]}
+  - {id: note.related_party.transactions, p: d, t: monetary, axes: [counterparty]}
+  - {id: note.commitments.capex_outstanding, p: i, t: monetary, axes: [counterparty, currency_denomination]}
+  - {id: note.eps.weighted_average_shares, p: d, t: shares}
+  - {id: note.dividend.per_share_declared, p: d, t: per_share}
+  - {id: note.intangibles.gross_carrying, p: i_and_movement, t: monetary, axes: [intangible_class, movement]}
+  - {id: note.intangibles.accumulated_amortization, p: i_and_movement, t: monetary, axes: [intangible_class, movement]}
+  - {id: note.revenue.gross_to_net,     p: d, t: monetary, axes: [deduction_type], note: "Gross sales less excise, rebates, returns, customer incentives = revenue"}
+  - {id: note.revenue.gross_sales,      p: d, t: monetary}
+  - {id: note.rnd.expense,              p: d, t: monetary, note: "Expensed R&D; capitalized portion = intangibles additions [intangible_class=development_costs]"}
+  - {id: note.royalty.expense,          p: d, t: monetary, axes: [counterparty, brand], note: "Brand principals, parent licensors, technology licensors"}
+  - {id: note.share_based_payment.expense, p: d, t: monetary}
+  - {id: note.goodwill.impairment,      p: d, t: monetary, axes: [segment_business]}
+  - {id: note.construction.contract_revenue, p: d, t: monetary, axes: [customer_type, recognition_timing]}
+
+  # Company-defined (stored as reported with definition_text; never merged with computed)
+  - {id: nongaap.ebitda,               p: d, t: monetary, company_defined: true}
+  - {id: nongaap.core_profit,          p: d, t: monetary, company_defined: true}
+
+# ------------------------------------------------------------------ operational KPI packs
+# q = required qualifiers (fact is flagged if missing)
+kpi_packs:
+  # Industry-agnostic operational core. Any producer, distributor or service business uses these first;
+  # industry packs define a specialized concept ONLY when its qualifiers or definition differ, and link
+  # to the core via `broader_links` so cross-industry queries still roll up.
+  core:
+    - {id: op.core.production_volume,  unit: from_product, p: d, axes: [product, commodity, facility, raw_material], q_optional: [basis]}
+    - {id: op.core.sales_volume,       unit: from_product, p: d, axes: [product, commodity, market, channel, brand, segment_geography]}
+    - {id: op.core.installed_capacity, unit: from_product, p: i, axes: [product, facility], note: "Annualized nameplate"}
+    - {id: op.core.capacity_utilization, unit: pct,        p: d, axes: [product, facility]}
+    - {id: op.core.asp,                unit: from_product_price, p: d, axes: [product, market, channel]}
+    - {id: op.core.unit_cash_cost,     unit: from_product_price, p: d, axes: [product], company_defined: true}
+    - {id: op.core.volume_growth,      unit: pct,          p: d, axes: [product, segment_business]}
+    - {id: op.core.price_growth,       unit: pct,          p: d, axes: [product, segment_business]}
+    - {id: op.core.market_share,       unit: pct,          p: d, axes: [product, segment_geography], note: "Usually third-party sourced (Gaikindo, Nielsen); assurance=third_party"}
+    - {id: op.core.facility_count,     unit: count,        p: i, axes: [facility_kind, segment_geography]}
+    - {id: op.core.distribution_reach, unit: count,        p: i, axes: [channel], note: "Outlets / points of sale served"}
+    - {id: op.core.customer_count,     unit: count,        p: i, axes: [customer_type, product]}
+    - {id: op.core.export_share,       unit: pct,          p: d, axes: [product]}
+    - {id: op.core.imported_input_share, unit: pct,        p: d, axes: [raw_material], note: "Share of raw materials imported (value or volume; state basis)"}
+    - {id: op.core.raw_material_cost_share, unit: pct,     p: d, axes: [raw_material]}
+    - {id: op.core.local_content_tkdn, unit: pct,          p: i, axes: [product], note: "TKDN score; gates government procurement preference"}
+    - {id: op.core.new_contracts,      unit: IDR,          p: d, axes: [segment_business, customer_type]}
+    - {id: op.core.order_backlog,      unit: IDR,          p: i, axes: [segment_business, customer_type]}
+    - {id: op.core.fleet_count,        unit: units,        p: i, axes: [vehicle_type], q_optional: [basis]}
+    - {id: op.core.recurring_revenue_share, unit: pct,     p: d, company_defined: true}
+  coal:
+    - {id: op.coal.production,          unit: Mt,          p: d, q: [basis], axes: [facility]}
+    - {id: op.coal.sales_volume,        unit: Mt,          p: d, q: [basis], axes: [market, segment_geography]}
+    - {id: op.coal.overburden_removal,  unit: Mbcm,        p: d, q: [basis]}
+    - {id: op.coal.stripping_ratio,     unit: bcm_per_t,   p: d}
+    - {id: op.coal.asp,                 unit: usd_per_t,   p: d, axes: [market]}
+    - {id: op.coal.cash_cost_ex_royalty, unit: usd_per_t,  p: d, company_defined: true}
+    - {id: op.coal.calorific_value,     unit: kcal_per_kg, p: d, q: [cv_basis]}
+    - {id: op.coal.reserves,            unit: Mt,          p: i, q: [reserve_class, reporting_code, basis]}
+    - {id: op.coal.resources,           unit: Mt,          p: i, q: [reserve_class, reporting_code, basis]}
+  nickel:
+    - {id: op.nickel.ore_production,    unit: wmt,         p: d, q: [basis, moisture_basis], axes: [facility]}
+    - {id: op.nickel.ore_grade,         unit: pct,         p: d, axes: [facility]}
+    - {id: op.nickel.ore_sales,         unit: wmt,         p: d, q: [moisture_basis], axes: [counterparty, market]}
+    - {id: op.nickel.product_output,    unit: t,           p: d, q: [metal_basis, basis], axes: [product, facility], note: "NPI / ferronickel / matte / MHP; t Ni contained"}
+    - {id: op.nickel.smelter_capacity,  unit: t,           p: i, axes: [facility, product]}
+    - {id: op.nickel.utilization,       unit: pct,         p: d, axes: [facility]}
+    - {id: op.nickel.asp,               unit: usd_per_t,   p: d, axes: [product]}
+    - {id: op.nickel.cash_cost,         unit: usd_per_t,   p: d, axes: [product], company_defined: true}
+    - {id: op.nickel.reserves,          unit: wmt,         p: i, q: [reserve_class, reporting_code, moisture_basis]}
+  copper_gold:
+    - {id: op.cugold.ore_milled,        unit: Mt,          p: d}
+    - {id: op.cugold.head_grade_cu,     unit: pct,         p: d}
+    - {id: op.cugold.head_grade_au,     unit: g_per_t,     p: d}
+    - {id: op.cugold.recovery,          unit: pct,         p: d, axes: [commodity]}
+    - {id: op.cugold.concentrate_production, unit: dmt,   p: d}
+    - {id: op.cugold.metal_production,  unit: lb,          p: d, q: [metal_basis], axes: [commodity], note: "Cu in lb, Au in oz via unit override"}
+    - {id: op.cugold.realized_price,    unit: usd_per_lb,  p: d, axes: [commodity]}
+    - {id: op.cugold.c1_cash_cost,      unit: usd_per_lb,  p: d, company_defined: true}
+    - {id: op.cugold.aisc,              unit: usd_per_lb,  p: d, company_defined: true}
+    - {id: op.cugold.smelter_throughput, unit: dmt,        p: d, axes: [facility]}
+  tin:
+    - {id: op.tin.ore_production,       unit: t,           p: d, q: [metal_basis]}
+    - {id: op.tin.refined_production,   unit: t,           p: d}
+    - {id: op.tin.sales_volume,         unit: t,           p: d, axes: [market, segment_geography]}
+    - {id: op.tin.asp,                  unit: usd_per_t,   p: d}
+  oil_gas:
+    - {id: op.og.lifting,               unit: boepd,       p: d, q: [basis], axes: [product]}
+    - {id: op.og.realized_price_oil,    unit: usd_per_bbl, p: d}
+    - {id: op.og.lifting_cost,          unit: usd_per_boe, p: d, company_defined: true}
+    - {id: op.og.reserves,              unit: mmboe,       p: i, q: [reserve_class, reporting_code, basis]}
+  plantation:
+    - {id: op.plant.planted_area,       unit: ha,          p: i, axes: [crop_maturity, plantation_scheme]}
+    - {id: op.plant.ffb_production,     unit: t,           p: d, axes: [plantation_scheme]}
+    - {id: op.plant.ffb_yield,          unit: t_per_ha,    p: d}
+    - {id: op.plant.cpo_production,     unit: t,           p: d}
+    - {id: op.plant.oil_extraction_rate, unit: pct,        p: d}
+    - {id: op.plant.cpo_asp,            unit: idr_per_kg,  p: d}
+  cement:
+    - {id: op.cement.sales_volume,      unit: Mt,          p: d, axes: [market, product]}
+    - {id: op.cement.capacity,          unit: Mt,          p: i}
+    - {id: op.cement.utilization,       unit: pct,         p: d}
+  retail:
+    - {id: op.retail.store_count,       unit: count,       p: i, axes: [store_format, brand, segment_geography], movement_ok: true}
+    - {id: op.retail.net_store_additions, unit: count,     p: d}
+    - {id: op.retail.selling_area,      unit: sqm,         p: i}
+    - {id: op.retail.sssg,              unit: pct,         p: d, company_defined: true}
+    - {id: op.retail.online_sales_share, unit: pct,        p: d}
+    - {id: op.retail.store_openings,    unit: count,       p: d, axes: [store_format, brand]}
+    - {id: op.retail.store_closures,    unit: count,       p: d, axes: [store_format, brand]}
+    - {id: op.retail.sales_per_sqm,     unit: idr_per_sqm, p: d, company_defined: true}
+    - {id: op.retail.transactions,      unit: count,       p: d}
+    - {id: op.retail.basket_size,       unit: idr_per_transaction, p: d}
+    - {id: op.retail.loyalty_members,   unit: count,       p: i}
+    - {id: op.retail.brands_operated,   unit: count,       p: i, note: "Brand-principal licensing model"}
+  telco_tower:
+    - {id: op.telco.subscribers,        unit: count,       p: i, axes: [product]}
+    - {id: op.telco.arpu,               unit: idr_per_month, p: d, axes: [product]}
+    - {id: op.telco.bts_count,          unit: count,       p: i}
+    - {id: op.tower.tenancy_ratio,      unit: pure,        p: i}
+  bank:   # regulator-defined ratios as published; do NOT compare with computed variants
+    - {id: reg.bank.car,                unit: pct, p: i}
+    - {id: reg.bank.npl_gross,          unit: pct, p: i}
+    - {id: reg.bank.npl_net,            unit: pct, p: i}
+    - {id: reg.bank.ldr_or_fdr,         unit: pct, p: i}
+    - {id: reg.bank.nim,                unit: pct, p: d}
+    - {id: reg.bank.roa_pretax,         unit: pct, p: d, note: "OJK ROA uses profit before tax over average assets"}
+    - {id: reg.bank.bopo,               unit: pct, p: d}
+    - {id: reg.bank.lcr,                unit: pct, p: i}
+    - {id: op.bank.casa_ratio,          unit: pct, p: i}
+    - {id: op.bank.loan_at_risk,        unit: pct, p: i, company_defined: true}
+  insurance:
+    - {id: op.ins.gross_written_premium, unit: IDR, p: d, note: "Still reported in MD&A under PSAK 117"}
+    - {id: reg.ins.rbc_ratio,           unit: pct, p: i}
+    - {id: note.ins.csm,                unit: IDR, p: i, axes: [movement], tpl: [INSURANCE_P117]}
+  multifinance:
+    - {id: op.fin.new_financing_booked, unit: IDR, p: d, axes: [product]}
+    - {id: reg.fin.npf,                 unit: pct, p: i}
+  property:
+    - {id: op.prop.marketing_sales,     unit: IDR, p: d, axes: [product]}
+    - {id: op.prop.landbank,            unit: ha,  p: i, axes: [facility]}
+    - {id: op.prop.occupancy,           unit: pct, p: i, axes: [facility]}
+  toll_power:
+    - {id: op.toll.operating_length_km, unit: count, p: i}
+    - {id: op.toll.avg_daily_traffic,   unit: vehicles_per_day, p: d, axes: [facility]}
+    - {id: op.power.installed_capacity, unit: MW,  p: i, axes: [energy_source, facility], q: [basis]}
+    - {id: op.power.electricity_sold,   unit: GWh, p: d}
+  hr:
+    - {id: hr.headcount,                unit: count, p: i, axes: [employee_level, employment_type, segment_geography]}
+    - {id: hr.turnover_rate,            unit: pct,   p: d}
+  esg:
+    - {id: esg.ghg_scope1,              unit: tco2e, p: d}
+    - {id: esg.ghg_scope2,              unit: tco2e, p: d}
+    - {id: esg.energy_consumption,      unit: GJ,    p: d, axes: [energy_source]}
+    - {id: esg.water_withdrawal,        unit: m3,    p: d}
+    - {id: esg.fatalities,              unit: count, p: d}
+    - {id: esg.rehabilitated_area,      unit: ha,    p: d}
+
+  pharma:
+    - {id: op.pharma.sku_count,              unit: count, p: i, axes: [product_category_pharma]}
+    - {id: op.pharma.new_registrations,      unit: count, p: d, note: "New product marketing authorizations (BPOM)"}
+    - {id: op.pharma.halal_certified_products, unit: count, p: i}
+    - {id: op.pharma.government_procurement_share, unit: pct, p: d, note: "e-catalogue / JKN channel share of revenue"}
+    - {id: op.pharma.pipeline_products,      unit: count, p: i, axes: [product_category_pharma], company_defined: true}
+  consumer_goods:
+    - {id: op.consumer.a_and_p_spend,        unit: IDR,   p: d, note: "Often only in MD&A when not split in opex note"}
+    - {id: op.consumer.new_product_launches, unit: count, p: d, axes: [product]}
+  technology_platform:
+    - {id: op.tech.gtv,                      unit: IDR,   p: d, axes: [product, segment_business], company_defined: true}
+    - {id: op.tech.take_rate,                unit: pct,   p: d, axes: [segment_business], company_defined: true}
+    - {id: op.tech.active_users,             unit: count, p: d, axes: [product], company_defined: true, note: "MAU / MTU / annual transacting users; store definition_text"}
+    - {id: op.tech.orders,                   unit: count, p: d, axes: [product]}
+    - {id: op.tech.contribution_margin,      unit: IDR,   p: d, axes: [segment_business], company_defined: true}
+    - {id: op.tech.net_revenue_retention,    unit: pct,   p: d, company_defined: true}
+    - {id: op.tech.loan_book,                unit: IDR,   p: i, note: "Embedded lending in platforms; bank template if a licensed bank"}
+  data_center:
+    - {id: op.dc.it_load_capacity,           unit: MW,    p: i, axes: [facility, facility_kind]}
+    - {id: op.dc.contracted_it_load,         unit: MW,    p: i, axes: [facility]}
+    - {id: op.dc.utilization,                unit: pct,   p: i, axes: [facility]}
+  construction_contractors:
+    - {id: op.contractor.overburden_removal, unit: Mbcm,  p: d, axes: [counterparty, facility]}
+    - {id: op.contractor.coal_getting,       unit: Mt,    p: d, axes: [counterparty, facility]}
+    - {id: op.contractor.contract_expiry_backlog, unit: IDR, p: i, axes: [counterparty, maturity_bucket]}
+  automotive_equipment:
+    - {id: op.auto.unit_sales,               unit: units, p: d, axes: [vehicle_type, brand, market]}
+    - {id: op.auto.wholesales_vs_retail,     unit: units, p: d, axes: [vehicle_type, channel]}
+  poultry_feed:
+    - {id: op.poultry.doc_sales,             unit: count, p: d}
+    - {id: op.poultry.live_bird_sales,       unit: t,     p: d}
+  healthcare_services:
+    - {id: op.health.hospital_count,         unit: count, p: i, axes: [segment_geography]}
+    - {id: op.health.bed_count,              unit: beds,  p: i, axes: [facility]}
+    - {id: op.health.bed_occupancy,          unit: pct,   p: d, axes: [facility]}
+    - {id: op.health.inpatient_days,         unit: count, p: d, axes: [payer]}
+    - {id: op.health.outpatient_visits,      unit: count, p: d, axes: [payer]}
+    - {id: op.health.revenue_by_payer_share, unit: pct,   p: d, axes: [payer], note: "BPJS/JKN mix drives margin"}
+  transport_logistics:
+    - {id: op.ship.fleet_utilization,        unit: pct,   p: d, axes: [vehicle_type]}
+    - {id: op.ship.tce_rate,                 unit: usd_per_day, p: d, axes: [vehicle_type], company_defined: true}
+    - {id: op.air.ask,                       unit: seat_km, p: d, axes: [market]}
+    - {id: op.air.rpk,                       unit: passenger_km, p: d, axes: [market]}
+    - {id: op.air.load_factor,               unit: pct,   p: d, axes: [market]}
+    - {id: op.air.passengers,                unit: passengers, p: d, axes: [market]}
+    - {id: op.logistics.containers_handled,  unit: teu,   p: d, axes: [facility]}
+  hospitality:
+    - {id: op.hotel.rooms,                   unit: rooms, p: i, axes: [facility, brand]}
+    - {id: op.hotel.occupancy,               unit: pct,   p: d, axes: [facility]}
+    - {id: op.hotel.adr,                     unit: idr_per_room_night, p: d, axes: [facility]}
+    - {id: op.hotel.revpar,                  unit: idr_per_room_night, p: d, axes: [facility]}
+  media:
+    - {id: op.media.audience_share,          unit: pct,   p: d, axes: [product], company_defined: true}
+    - {id: op.media.subscribers,             unit: count, p: i, axes: [product]}
+
+# Specialized -> core. Lets "production volume across all issuers" work without losing specialized qualifiers.
+broader_links:
+  op.coal.production: op.core.production_volume
+  op.coal.sales_volume: op.core.sales_volume
+  op.coal.asp: op.core.asp
+  op.coal.cash_cost_ex_royalty: op.core.unit_cash_cost
+  op.nickel.ore_production: op.core.production_volume
+  op.nickel.product_output: op.core.production_volume
+  op.nickel.smelter_capacity: op.core.installed_capacity
+  op.nickel.utilization: op.core.capacity_utilization
+  op.nickel.asp: op.core.asp
+  op.nickel.cash_cost: op.core.unit_cash_cost
+  op.cugold.metal_production: op.core.production_volume
+  op.tin.refined_production: op.core.production_volume
+  op.tin.sales_volume: op.core.sales_volume
+  op.tin.asp: op.core.asp
+  op.plant.cpo_production: op.core.production_volume
+  op.plant.cpo_asp: op.core.asp
+  op.cement.sales_volume: op.core.sales_volume
+  op.cement.capacity: op.core.installed_capacity
+  op.cement.utilization: op.core.capacity_utilization
+  op.auto.unit_sales: op.core.sales_volume
+  op.retail.store_count: op.core.facility_count
+  op.health.hospital_count: op.core.facility_count
+
+# KPI packs attach to issuer SEGMENTS, not issuers (conglomerates run several packs at once).
+# Stored in idxfin_ref.issuer_kpi_pack. Fictional example:
+pack_assignment_example:
+  - {ticker: XXXX, pack: automotive_equipment, segment_member: automotive,       valid_from: 2015-01-01}
+  - {ticker: XXXX, pack: construction_contractors, segment_member: mining_services, valid_from: 2015-01-01}
+  - {ticker: XXXX, pack: coal,                 segment_member: coal,             valid_from: 2015-01-01}
+  - {ticker: XXXX, pack: plantation,           segment_member: plantation,       valid_from: 2015-01-01}
+  - {ticker: XXXX, pack: core,                 segment_member: null,             valid_from: 2015-01-01}
+
+# ------------------------------------------------------------------ derived metrics (gold)
+# DSL: concept ids; x[axis=member] filter; sum(x[axis=*]); avg(x) = mean(opening, closing); lag(x); days = period days; opt(x) = 0 if absent
+metrics:
+  - {id: gross_margin,     tpl: *NONFIN, formula: "fs.is.gross_profit / fs.is.revenue"}
+  - {id: capex_cash,       tpl: *ALL,    formula: "fs.cf.acquisition_ppe + opt(fs.cf.additions_mine_properties_ee) + opt(fs.cf.acquisition_intangibles)", note: "Understates when additions are financed via payables or leases"}
+  - {id: capex_rollforward, tpl: *ALL,   formula: "sum(note.ppe.gross_carrying[movement=additions]) + opt(sum(note.intangibles.gross_carrying[movement=additions]))"}
+  - {id: d_and_a,          tpl: *ALL,    formula: "sum(note.ppe.accumulated_depreciation[movement=charge]) + opt(note.rou.depreciation) + opt(note.intangibles.amortization) + opt(note.mine_properties.amortization)", note: "Direct-method CF does not show D&A; build from rollforwards"}
+  - {id: ebitda_computed,  tpl: *NONFIN, formula: "fs.is.profit_before_tax + fs.is.finance_costs - fs.is.finance_income - opt(fs.is.share_of_profit_associates) + d_and_a"}
+  - {id: total_debt,       tpl: *NONFIN, formula: "opt(fs.bs.short_term_bank_loans) + opt(fs.bs.lt_borrowings_current) + opt(fs.bs.lt_borrowings_noncurrent) + opt(fs.bs.bonds_payable)"}
+  - {id: net_debt,         tpl: *NONFIN, formula: "total_debt - fs.bs.cash_and_equivalents - opt(fs.bs.short_term_investments)"}
+  - {id: net_debt_incl_leases, tpl: *NONFIN, formula: "net_debt + opt(fs.bs.lease_liabilities)"}
+  - {id: fcf,              tpl: *NONFIN, formula: "fs.cf.net_cash_operating - capex_cash"}
+  - {id: fcf_after_leases, tpl: *NONFIN, formula: "fcf - opt(fs.cf.lease_payments)"}
+  - {id: der,              tpl: *NONFIN, formula: "total_debt / fs.bs.total_equity"}
+  - {id: roe,              tpl: *ALL,    formula: "fs.is.profit_attributable[attribution=owners_of_parent] / avg(fs.bs.equity_attributable_owners)"}
+  - {id: dso,              tpl: *NONFIN, formula: "avg(fs.bs.trade_receivables) / fs.is.revenue * days"}
+  - {id: dio,              tpl: *NONFIN, formula: "avg(fs.bs.inventories) / fs.is.cost_of_revenue * days"}
+  - {id: dpo,              tpl: *NONFIN, formula: "avg(fs.bs.trade_payables) / fs.is.cost_of_revenue * days"}
+  - {id: cash_conversion_cycle, tpl: *NONFIN, formula: "dso + dio - dpo"}
+  - {id: wc_change_derived, tpl: *NONFIN, formula: "-((fs.bs.trade_receivables - lag(fs.bs.trade_receivables)) + (fs.bs.inventories - lag(fs.bs.inventories)) - (fs.bs.trade_payables - lag(fs.bs.trade_payables)))", note: "Needed because direct-method CF has no working-capital lines"}
+  - {id: payout_ratio,     tpl: *ALL,    formula: "fs.cf.dividends_paid[attribution=owners_of_parent] / lag(fs.is.profit_attributable[attribution=owners_of_parent])", note: "Final dividends paid in year t come from FY t-1 profit via RUPS"}
+  - {id: nim_computed,     tpl: [BANK],  formula: "fs.is.bank.net_interest_income / avg(fs.bs.bank.placements + fs.bs.bank.marketable_securities + fs.bs.bank.government_bonds + fs.bs.bank.loans_gross)"}
+  - {id: cost_of_credit,   tpl: [BANK],  formula: "fs.is.bank.impairment_expense / avg(fs.bs.bank.loans_gross)"}
+  - {id: rnd_intensity,    tpl: *NONFIN, formula: "(opt(note.rnd.expense) + opt(sum(note.intangibles.gross_carrying[intangible_class=development_costs, movement=additions]))) / fs.is.revenue"}
+  - {id: a_and_p_to_sales, tpl: *NONFIN, formula: "note.opex.breakdown[cost_component=advertising_promotion] / fs.is.revenue"}
+  - {id: royalty_to_revenue, tpl: *NONFIN, formula: "sum(note.royalty.expense[counterparty=*]) / fs.is.revenue"}
+  - {id: gross_to_net_leakage, tpl: *NONFIN, formula: "sum(note.revenue.gross_to_net[deduction_type=*]) / note.revenue.gross_sales"}
+  - {id: implied_take_rate, tpl: [GENERAL], formula: "note.segment.revenue[segment_business=*] / op.tech.gtv[segment_business=*]", note: "Compare with company-stated op.tech.take_rate"}
+  - {id: book_to_bill,     tpl: *NONFIN, formula: "op.core.new_contracts / fs.is.revenue"}
+  - {id: backlog_cover_years, tpl: *NONFIN, formula: "op.core.order_backlog / fs.is.revenue"}
+  - {id: sbc_to_revenue,   tpl: *NONFIN, formula: "note.share_based_payment.expense / fs.is.revenue"}
+  - {id: public_sector_receivables_share, tpl: *NONFIN, formula: "sum(note.receivables.aging[customer_type=government] + note.receivables.aging[customer_type=soe] + note.receivables.aging[payer=bpjs_jkn]) / sum(note.receivables.aging[aging_bucket=*])"}
+  - {id: revenue_implied_by_kpi, tpl: [GENERAL], formula: "op.coal.sales_volume * op.coal.asp", note: "Soft cross-check vs note.segment.revenue[segment_business=coal] after FX"}
+
+# ------------------------------------------------------------------ validation rules
+# tolerance rounding = n_terms x scale_as_reported
+validation_rules:
+  - {id: bs_identity,        severity: hard, tpl: *ALL,    expr: "fs.bs.total_assets == fs.bs.total_liabilities + opt(fs.bs.sharia.temporary_syirkah_funds) + fs.bs.total_equity", tol: rounding}
+  - {id: bs_current_split,   severity: hard, tpl: *NONFIN, when: "bs_format == current_noncurrent", expr: "fs.bs.total_assets == fs.bs.total_current_assets + fs.bs.total_non_current_assets", tol: rounding}
+  - {id: equity_attribution, severity: hard, tpl: *ALL,    expr: "fs.bs.total_equity == fs.bs.equity_attributable_owners + opt(fs.bs.non_controlling_interests)", tol: rounding}
+  - {id: gross_profit,       severity: hard, tpl: *NONFIN, expr: "fs.is.gross_profit == fs.is.revenue - fs.is.cost_of_revenue", tol: rounding}
+  - {id: net_profit,         severity: hard, tpl: *ALL,    expr: "fs.is.profit_for_the_period == fs.is.profit_before_tax - fs.is.income_tax_expense", tol: rounding}
+  - {id: profit_attribution, severity: hard, tpl: *ALL,    expr: "fs.is.profit_for_the_period == sum(fs.is.profit_attributable[attribution=*])", tol: rounding}
+  - {id: tci,                severity: hard, tpl: *ALL,    expr: "fs.oci.total_comprehensive_income == fs.is.profit_for_the_period + fs.oci.oci_total", tol: rounding}
+  - {id: cf_sections,        severity: hard, tpl: *ALL,    expr: "fs.cf.net_change_cash == fs.cf.net_cash_operating + fs.cf.net_cash_investing + fs.cf.net_cash_financing", tol: rounding}
+  - {id: cf_rollforward,     severity: hard, tpl: *ALL,    expr: "fs.cf.cash_ending == fs.cf.cash_beginning + fs.cf.net_change_cash + opt(fs.cf.fx_effect_cash)", tol: rounding}
+  - {id: cf_ties_bs_cash,    severity: soft, tpl: *ALL,    expr: "fs.cf.cash_ending == fs.bs.cash_and_equivalents", tol: rounding, note: "Fails legitimately when overdrafts are netted in CF cash"}
+  - {id: ppe_rollforward,    severity: hard, tpl: *ALL,    expr: "for each asset_class: closing == opening + sum(movements)", tol: rounding}
+  - {id: ppe_ties_bs,        severity: hard, tpl: *ALL,    expr: "sum(note.ppe.gross_carrying[movement=closing]) - sum(note.ppe.accumulated_depreciation[movement=closing]) == fs.bs.ppe_net", tol: rounding}
+  - {id: segment_sum,        severity: hard, tpl: *ALL,    expr: "sum(note.segment.revenue[segment_business=*]) == fs.is.revenue", tol: rounding, note: "elimination member included in sum"}
+  - {id: eps_check,          severity: soft, tpl: *ALL,    expr: "fs.is.eps_basic ~= fs.is.profit_attributable[attribution=owners_of_parent] / note.eps.weighted_average_shares", tol: "pct:0.02"}
+  - {id: comparative_consistency, severity: soft, tpl: *ALL, expr: "same (concept, period, dim_key) across filings equal unless is_restated_column", tol: rounding}
+  - {id: grounding,          severity: hard, tpl: *ALL,    expr: "raw_text found verbatim on lineage.page"}
+  - {id: unit_dimension,     severity: hard, tpl: *ALL,    expr: "unit.dimension == concept.unit_dimension"}
+  - {id: required_qualifiers, severity: soft, tpl: *ALL,   expr: "all concept.required_qualifiers present in dims"}
+  - {id: utilization_bounds, severity: soft, tpl: *ALL,    expr: "0 <= op.*.utilization <= 120 (pct)"}
+  - {id: gross_to_net,       severity: hard, tpl: *NONFIN, expr: "note.revenue.gross_sales - sum(note.revenue.gross_to_net[deduction_type=*]) == fs.is.revenue", tol: rounding}
+  - {id: intangibles_rollforward, severity: hard, tpl: *ALL, expr: "for each intangible_class: closing == opening + sum(movements)", tol: rounding}
+  - {id: store_rollforward,  severity: soft, tpl: [GENERAL], expr: "op.retail.store_count[t] == op.retail.store_count[t-1] + op.retail.store_openings - op.retail.store_closures", tol: "abs:0"}
+  - {id: revpar_identity,    severity: soft, tpl: *NONFIN, expr: "op.hotel.revpar ~= op.hotel.adr * op.hotel.occupancy", tol: "pct:0.03"}
+  - {id: load_factor_identity, severity: soft, tpl: *NONFIN, expr: "op.air.load_factor ~= op.air.rpk / op.air.ask", tol: "pct:0.01"}
+  - {id: gtv_exceeds_revenue, severity: soft, tpl: [GENERAL], expr: "op.tech.gtv >= note.segment.revenue (same segment)"}
+  - {id: core_utilization_bounds, severity: soft, tpl: *ALL, expr: "0 <= op.core.capacity_utilization <= 120 (pct)"}
+
+  # v0.3 — quarterly / annual interplay
+  - {id: interim_opening_cash, severity: hard, tpl: *ALL, when: "doc_type == fs_interim", expr: "fs.cf.cash_beginning[YTD t] == fs.bs.cash_and_equivalents[FY t-1 close]", tol: rounding, note: "Soft instead if CF cash nets overdrafts"}
+  - {id: interim_year_end_column_ties_annual, severity: soft, tpl: *ALL, expr: "prior year-end BS column in Q1/H1/9M filing == same instant in FY t-1 filing unless is_restated", tol: rounding}
+  - {id: ytd_comparative_ties_prior_interim, severity: soft, tpl: *ALL, expr: "9M t-1 comparative column in 9M t filing == 9M t-1 current column in 9M t-1 filing unless is_restated", tol: rounding}
+  - {id: reported_quarters_sum_to_fy, severity: soft, tpl: *ALL, expr: "sum(reported_discrete Q1..Q4) ~= FY value for additive concepts", tol: "pct:0.005"}
+  - {id: derived_vs_reported_quarter, severity: soft, tpl: *ALL, expr: "derived_from_ytd == reported_discrete when both exist (has_alternate_source)", tol: "pct:0.01"}
+  - {id: annual_report_matches_lk, severity: soft, tpl: *ALL, expr: "management_narrative fact == audited fact for same concept/period/dim_key", tol: rounding, note: "AR MD&A tables often round or reclassify"}
+  - {id: q4_derived_outlier, severity: info, tpl: *ALL, expr: "derived Q4 outside mean(Q1..Q3) +/- 3 sd for fs.is.* concepts", note: "Year-end impairments, audit adjustments, bonuses; flags, never blocks"}

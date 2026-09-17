@@ -1,0 +1,26 @@
+# Large data and filing folders (mounted via docker-compose volumes instead)
+complete-ticker/
+data/
+examples/
+batch_tasks.json
+
+# Virtual environments
+.venv/
+venv/
+env/
+.env
+
+# Python cache & artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+.coverage
+
+# Git and OS artifacts
+.git/
+.gitignore
+.DS_Store
+*.log
+*.duckdb*

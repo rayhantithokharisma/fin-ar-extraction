@@ -1,0 +1,52 @@
+name: fx_rate
+table_reference:
+  catalog: idxfin
+  schema: idxfin_gold
+  table: fx_rate_daily
+description: "Daily foreign exchange (FX) rates and currency conversion benchmarks from Yahoo Finance (e.g. USD/IDR). Provides daily close, monthly average, and annual average rates to convert financial statement USD disclosures to IDR and evaluate cross-currency benchmarks."
+primary_key:
+  - pair
+  - trade_date
+columns:
+  - name: pair
+    type: varchar
+    description: "Currency pair symbol (e.g. 'USD/IDR')."
+  - name: symbol
+    type: varchar
+    description: "Yahoo Finance market ticker (e.g. 'IDR=X')."
+  - name: trade_date
+    type: date
+    description: "Trading and valuation date (YYYY-MM-DD)."
+  - name: open
+    type: decimal
+    description: "Opening daily exchange rate."
+  - name: high
+    type: decimal
+    description: "Highest intra-day exchange rate."
+  - name: low
+    type: decimal
+    description: "Lowest intra-day exchange rate."
+  - name: rate_close
+    type: decimal
+    description: "Closing exchange rate for the day (e.g. Rupiah per 1 US Dollar, ~16,085 for Dec 2024, ~16,709 for Dec 2025)."
+  - name: rate
+    type: decimal
+    description: "Benchmark closing spot exchange rate."
+  - name: base_currency
+    type: varchar
+    description: "Base currency code (e.g. 'USD')."
+  - name: quote_currency
+    type: varchar
+    description: "Quote currency code (e.g. 'IDR')."
+  - name: month_date
+    type: date
+    description: "First day of the calendar month (e.g. 2025-12-01)."
+  - name: fiscal_year
+    type: integer
+    description: "Calendar and fiscal year of the rate (e.g. 2024, 2025)."
+  - name: monthly_avg_rate
+    type: decimal
+    description: "Monthly average exchange rate across all trading days in the month."
+  - name: yearly_avg_rate
+    type: decimal
+    description: "Annual average exchange rate across all trading days in the fiscal year (ideal for Income Statement and Cash Flow translations)."

@@ -1,0 +1,121 @@
+name: financial_summary
+table_reference:
+  schema: idxfin_gold
+  table: financial_summary
+  catalog: idxfin
+description: Standardized cross-industry financial statement summary for Indonesian
+  public companies (IDX) under IFRS and PSAK. Contains face balance sheet, income
+  statement, and cash flow items.
+primary_key:
+- issuer_id
+- period_end
+columns:
+- name: issuer_id
+  type: varchar
+  description: 4-character IDX stock ticker symbol (e.g. BBCA, NCKL, ADRO, MAPI, ARCI,
+    BREN, ESSA).
+- name: period_end
+  type: date
+  description: Financial reporting period end date (e.g. 2025-12-31).
+- name: fiscal_year
+  type: integer
+  description: Fiscal year (e.g. 2024, 2025).
+- name: fiscal_period
+  type: varchar
+  description: 'Reporting period code: FY (Full Year annual audited), Q1 (First Quarter),
+    H1 (First Half), 9M (Nine Months).'
+- name: currency
+  type: varchar
+  description: 'Reporting currency: IDR (Indonesian Rupiah) or USD (US Dollar). Always
+    check currency before aggregating.'
+- name: total_assets
+  type: decimal
+  description: Total assets as reported on the statement of financial position. In
+    full nominal currency units.
+- name: current_assets
+  type: decimal
+  description: Total current assets. For commercial banks (e.g. BBCA, BBSI) presenting
+    in order of liquidity, this field is NULL.
+- name: total_liabilities
+  type: decimal
+  description: Total liabilities in full nominal currency units.
+- name: current_liabilities
+  type: decimal
+  description: Total current liabilities. NULL for commercial banks presenting in
+    order of liquidity.
+- name: total_equity
+  type: decimal
+  description: Total equity attributable to owners and non-controlling interests.
+- name: temporary_syirkah_funds
+  type: decimal
+  description: Dana Syirkah Temporer under PSAK 101 for Islamic institutions and commercial
+    banks with sharia subsidiaries (e.g. BBCA / BCA Syariah). Situated between liabilities
+    and equity. Assets = Liabilities + Equity + Syirkah Funds.
+- name: revenue
+  type: decimal
+  description: Top-line gross operating revenue. For corporate entities, this is gross
+    sales/contracts; for commercial banks, this coalesces interest income and operating
+    income.
+- name: cost_of_revenue
+  type: decimal
+  description: Cost of goods sold (COGS) or banking interest expense (cost of funds).
+- name: gross_profit
+  type: decimal
+  description: Gross profit for corporate entities, or Net Interest Income (Interest
+    Income - Interest Expense) for commercial banks.
+- name: net_profit
+  type: decimal
+  description: Bottom-line net profit for the year/period (Laba tahun berjalan) attributable
+    to the entity.
+- name: operating_cash_flow
+  type: decimal
+  description: Net cash flows generated from operating activities (Direct method).
+- name: capex
+  type: decimal
+  description: Capital expenditures (Acquisition of Property, Plant & Equipment, Bearer
+    Plants, or Intangible Assets from cash flows). Expressed as a positive nominal
+    magnitude.
+- name: bank_loans
+  type: decimal
+  description: Gross loan portfolio (Kredit yang diberikan) for commercial banks (BBCA,
+    BBSI).
+- name: bank_deposits
+  type: decimal
+  description: 'Customer deposits (Dana Pihak Ketiga: Giro, Tabungan, Deposito) for
+    commercial banks.'
+- name: return_on_equity_pct
+  type: decimal
+  expression: ROUND((net_profit / NULLIF(total_equity, 0)) * 100, 2)
+  description: Return on Equity (ROE) percentage.
+  is_calculated: true
+- name: return_on_assets_pct
+  type: decimal
+  expression: ROUND((net_profit / NULLIF(total_assets, 0)) * 100, 2)
+  description: Return on Assets (ROA) percentage.
+  is_calculated: true
+- name: net_profit_margin_pct
+  type: decimal
+  expression: ROUND((net_profit / NULLIF(revenue, 0)) * 100, 2)
+  description: Net Profit Margin percentage.
+  is_calculated: true
+- name: gross_profit_margin_pct
+  type: decimal
+  expression: ROUND((gross_profit / NULLIF(revenue, 0)) * 100, 2)
+  description: Gross Profit Margin percentage (or Net Interest Margin proxy for banks).
+  is_calculated: true
+- name: debt_to_equity_ratio
+  type: decimal
+  expression: ROUND(total_liabilities / NULLIF(total_equity, 0), 2)
+  description: Debt to Equity Ratio (Total Liabilities / Total Equity).
+  is_calculated: true
+- name: current_ratio
+  type: decimal
+  expression: ROUND(current_assets / NULLIF(current_liabilities, 0), 2)
+  description: Current Ratio (Current Assets / Current Liabilities). Applicable only
+    to non-bank entities.
+  is_calculated: true
+- name: loan_to_deposit_ratio_pct
+  type: decimal
+  expression: ROUND((bank_loans / NULLIF(bank_deposits, 0)) * 100, 2)
+  description: Loan to Deposit Ratio (LDR) for commercial banks.
+  is_calculated: true

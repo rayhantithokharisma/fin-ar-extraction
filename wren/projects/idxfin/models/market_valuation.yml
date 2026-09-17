@@ -1,0 +1,47 @@
+name: market_valuation
+table_reference:
+  schema: idxfin_gold
+  table: market_valuation
+  catalog: idxfin
+description: Cross-asset valuation view linking fundamental financial statements with
+  historical stock prices, latest closing market prices, and price returns since filing
+  period end.
+primary_key:
+- issuer_id
+- period_end
+columns:
+- name: issuer_id
+  type: varchar
+  description: IDX stock ticker (e.g. ADRO, BBCA, NCKL, ARCI, ESSA).
+- name: fiscal_year
+  type: integer
+  description: Fiscal year of the filing.
+- name: fiscal_period
+  type: varchar
+  description: Fiscal period (FY, Q1, H1, 9M).
+- name: period_end
+  type: date
+  description: Filing period cut-off date.
+- name: currency
+  type: varchar
+  description: Financial statement currency.
+- name: revenue
+  type: decimal
+  description: Reported revenue in nominal units.
+- name: net_profit
+  type: decimal
+  description: Reported net profit in nominal units.
+- name: total_equity
+  type: decimal
+  description: Reported book value of equity.
+- name: period_close_price
+  type: decimal
+  description: Stock closing price on or closest to the filing period end date (in
+    IDR/share).
+- name: latest_close_price
+  type: decimal
+  description: Most recent trading day closing price (in IDR/share).
+- name: price_change_since_period_pct
+  type: decimal
+  description: Percentage return of the stock price from the period close date to
+    the latest market date.

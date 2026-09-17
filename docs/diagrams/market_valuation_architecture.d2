@@ -1,0 +1,83 @@
+direction: right
+
+title: "Market Data Ingestion, Macroeconomic Benchmarks & Cross-Asset Valuation" {
+  near: top-center
+  shape: text
+  style.font-size: 24
+  style.bold: true
+}
+
+feed: "External Market & Benchmark Feeds" {
+  style.fill: "#FEF3C7"
+  style.stroke: "#F59E0B"
+  style.stroke-width: 2
+
+  stocks: "IDX Equities (yfinance)\n4-Year Daily OHLCV Bars\ne.g. BBCA.JK, ADRO.JK, ESSA.JK" { shape: cylinder }
+  comms: "Commodity Proxies & Energy (yfinance)\nGold (GC=F), WTI (CL=F), Brent (BZ=F)\nHenry Hub Gas (NG=F), CF Industries (CF)" { shape: cylinder }
+  ammonia: "Physical Ammonia Spot Benchmark\nNH3=F (USD/ton Assessment Series)\n1,821 Daily Forward-Filled Bars" { shape: cylinder }
+  fx: "Foreign Exchange Benchmark (yfinance)\nUSD/IDR Spot Daily Rates (IDR=X)\n1,039 Daily Trading Bars" { shape: cylinder }
+}
+
+warehouse: "DuckDB Analytical Warehouse (data/idxfin.duckdb)" {
+  style.fill: "#F9FAFB"
+  style.stroke: "#4B5563"
+  style.stroke-width: 2
+
+  market_schema: "Market Schema (idxfin_market)" {
+    style.fill: "#FEF7E0"
+    style.stroke: "#F59E0B"
+    t_stock: "idxfin_market.stock_daily\nPK: (ticker, trade_date)\nOHLCV, Adjusted Close, Volume" {
+      shape: rectangle
+      style.stroke-dash: 2
+    }
+    t_comm: "idxfin_market.commodity_daily\nPK: (symbol, trade_date)\nEnergy, Metals, Physical NH3=F (USD/ton)" {
+      shape: rectangle
+      style.stroke-dash: 2
+    }
+    t_fx: "idxfin_market.fx_daily\nPK: (pair, trade_date)\nUSD/IDR Rates, Base & Quote Currency" {
+      shape: rectangle
+      style.stroke-dash: 2
+    }
+  }
+
+  silver_schema: "Silver Schema (idxfin_silver)" {
+    style.fill: "#ECFDF5"
+    style.stroke: "#10B981"
+    t_fact: "idxfin_silver.fact\nAudited LK/AR Line Items &\nPhysical Production Facts" {
+      shape: rectangle
+    }
+  }
+
+  gold_schema: "Gold Analytical Layer (idxfin_gold)" {
+    style.fill: "#FAF5FF"
+    style.stroke: "#8B5CF6"
+    v_summary: "idxfin_gold.financial_summary\nPivoted Assets, Equity, Revenue, Net Profit" {
+      shape: rectangle
+    }
+    v_valuation: "idxfin_gold.market_valuation\nFundamentals + Period Stock Close\nLatest Price, Return % & Valuation Multiples" {
+      shape: rectangle
+    }
+    v_comm: "idxfin_gold.commodity_trend_monthly\nMonthly Macro Returns, Spreads & NH3 Trends" {
+      shape: rectangle
+    }
+    v_fx: "idxfin_gold.fx_rate_daily\nDaily Rates + 30D / 365D Moving Averages" {
+      shape: rectangle
+    }
+    v_op_kpi: "idxfin_gold.operational_kpi\nPhysical Production Volumes (Ammonia, LPG, Coal)" {
+      shape: rectangle
+    }
+  }
+}
+
+feed.stocks -> warehouse.market_schema.t_stock: "Batch Upsert (.JK Tickers)"
+feed.comms -> warehouse.market_schema.t_comm: "Batch Upsert (Multi-Asset Catalog)"
+feed.ammonia -> warehouse.market_schema.t_comm: "Daily Resampled Bars (NH3=F)"
+feed.fx -> warehouse.market_schema.t_fx: "Batch Upsert (IDR=X)"
+
+warehouse.silver_schema.t_fact -> warehouse.gold_schema.v_summary: "Pivoted Multi-Industry Statements"
+warehouse.silver_schema.t_fact -> warehouse.gold_schema.v_op_kpi: "Operational Volume Items"
+warehouse.gold_schema.v_summary -> warehouse.gold_schema.v_valuation: "Reporting Period End Dates"
+warehouse.market_schema.t_stock -> warehouse.gold_schema.v_valuation: "Windowed ±5 Day Price Match\n& Latest Close Price"
+warehouse.market_schema.t_comm -> warehouse.gold_schema.v_comm: "Date-Trunc Monthly Aggregations"
+warehouse.market_schema.t_fx -> warehouse.gold_schema.v_fx: "Windowed Monthly & Annual Averages"
+warehouse.gold_schema.v_fx -> warehouse.gold_schema.v_valuation: "USD/IDR Currency Translation"

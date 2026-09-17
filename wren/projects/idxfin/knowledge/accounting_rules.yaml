@@ -1,0 +1,15 @@
+rules:
+  - name: currency_isolation_rule
+    description: "Indonesian public issuers report in either IDR or USD. ADRO, ABMM, BREN, ARCI, and ESSA report in USD (or specific foreign currency). BBCA, NCKL, MAPI, ATIC, LSIP, CASS, BBSI, DMAS, BISI, and IPCM report in IDR. When ranking or summing companies across sectors, NEVER add USD and IDR directly without grouping by currency or converting via exchange rate."
+
+  - name: sharia_banking_reconciliation
+    description: "For commercial banks with Islamic operations (specifically BBCA / BCA Syariah), the balance sheet includes Dana Syirkah Temporer (temporary_syirkah_funds). The balance sheet equation is: total_assets = total_liabilities + total_equity + temporary_syirkah_funds. For conventional entities, temporary_syirkah_funds is NULL or 0."
+
+  - name: banking_presentation_distinction
+    description: "Commercial banks (BBCA, BBSI) do not classify current assets vs non-current assets. Do not query current_assets or current_liabilities for banks. Instead, evaluate bank liquidity using bank_deposits, bank_loans, and loan_to_deposit_ratio_pct."
+
+  - name: capex_nominal_sign
+    description: "In the financial_summary model, capex is already normalized to a positive nominal value representing cash outflows for capital expenditures. Do not negate capex when calculating free cash flow: FCF = operating_cash_flow - capex."
+
+  - name: page_provenance_citation
+    description: "Whenever a user asks for verification, audit trail, or proof of an extracted financial number, perform a JOIN with financial_summary_provenance and explicitly state the cited PDF page number in the final narrative."

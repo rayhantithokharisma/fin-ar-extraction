@@ -1,0 +1,78 @@
+direction: right
+
+title: "Distributed Asynchronous Extraction & Concurrent Ingestion Architecture" {
+  near: top-center
+  shape: text
+  style.font-size: 24
+  style.bold: true
+}
+
+clients: "Ingestion Clients" {
+  style.fill: "#F3F4F6"
+  style.stroke: "#9CA3AF"
+  cli: "CLI Engine\n(python -m src.cli extract --async)" { shape: package }
+  http: "HTTP / Web Clients\n(cURL, Frontend, Automations)" { shape: person }
+}
+
+gateway: "API Gateway (FastAPI: port 8000)" {
+  style.fill: "#EFF6FF"
+  style.stroke: "#3B82F6"
+  api_post: "POST /api/v1/extract\n(Dispatches Async Tasks)"
+  api_status: "GET /api/v1/tasks/{id}\n(Polls Execution Status)"
+  api_gold: "GET /api/v1/gold/summary\n(Streams Gold Financials)"
+}
+
+broker: "Message Broker & Result Backend (Redis: port 6379)" {
+  style.fill: "#FEE2E2"
+  style.stroke: "#EF4444"
+  q_extract: "Queue: extraction\n(LLM Section Ingestion)" { shape: queue }
+  q_market: "Queue: market_sync\n(Equities, FX & NH3 Benchmarks)" { shape: queue }
+  q_writer: "Queue: duckdb_writer\n(Serialized DB Writer Concurrency=1)" { shape: queue }
+  backend: "Redis State Backend\n(Progress, Stage, Telemetry)" { shape: cylinder }
+}
+
+workers: "Celery Worker Pool (Concurrency = 6)" {
+  style.fill: "#ECFDF5"
+  style.stroke: "#10B981"
+  w1: "Worker Slot 1"
+  w2: "Worker Slot 2"
+  w3: "Worker Slot 3"
+  w4: "Worker Slot 4"
+  w5: "Worker Slot 5"
+  w6: "Worker Slot 6"
+}
+
+staging: "Parquet Staging Lake (data/staging/pending/{run_id}/)" {
+  style.fill: "#FEF3C7"
+  style.stroke: "#F59E0B"
+  doc_p: "document.parquet" { shape: page }
+  fact_p: "facts.parquet" { shape: page }
+  off_p: "officers.parquet" { shape: page }
+  val_p: "validation_results.parquet" { shape: page }
+  meta_p: "run_metadata.json" { shape: page }
+}
+
+db_engine: "DuckDB Medallion Storage & Concurrency Control (data/idxfin.duckdb)" {
+  style.fill: "#FAF5FF"
+  style.stroke: "#8B5CF6"
+  lock: "FileLock Mutex (idxfin.duckdb.lock)" { shape: diamond }
+  duckdb_store: "DuckDB Medallion Store\n(Bronze, Silver, Market, Gold)" { shape: cylinder }
+  views: "Gold Analytical Views\n(Materialized on Commit)"
+  wren_ro: "Wren Engine & GenBI Readers\n(PRAGMA access_mode='read_only')" { shape: rectangle }
+}
+
+clients.cli -> gateway.api_post: "Submit Extraction Request"
+clients.http -> gateway.api_post
+gateway.api_post -> broker.q_extract: "Enqueue Task"
+broker.q_extract -> workers: "Prefetch=1, Acks Late"
+
+workers -> staging: "Write Parquet Run Artifacts"
+workers -> broker.backend: "Update Stage & Progress"
+gateway.api_status -> broker.backend: "Query Task State"
+
+workers -> broker.q_writer: "Notify Run Completed"
+broker.q_writer -> db_engine.lock: "Serialize Write Access"
+db_engine.lock -> db_engine.duckdb_store: "Atomic Parquet Bulk Ingest"
+db_engine.duckdb_store -> db_engine.views: "Refresh Gold Summaries"
+gateway.api_gold -> db_engine.views: "Serve Analytical Queries"
+db_engine.duckdb_store -> db_engine.wren_ro: "Concurrent Zero-Lock Reads"

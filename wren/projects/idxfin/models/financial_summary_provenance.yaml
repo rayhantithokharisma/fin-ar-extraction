@@ -1,0 +1,35 @@
+name: financial_summary_provenance
+table_reference:
+  schema: idxfin_gold
+  table: financial_summary_provenance
+  catalog: idxfin
+description: Audit trail mapping every metric in financial_summary to its exact source
+  PDF page citation (e.g. p.4, p.18).
+primary_key:
+- issuer_id
+- period_end
+columns:
+- name: issuer_id
+  type: varchar
+  description: IDX ticker symbol.
+- name: period_end
+  type: date
+  description: Filing period cut-off date.
+- name: fiscal_year
+  type: integer
+  description: Fiscal year.
+- name: total_assets_page
+  type: varchar
+  description: PDF page citation for Total Assets (e.g. 'p.4').
+- name: revenue_page
+  type: varchar
+  description: PDF page citation for Revenue (e.g. 'p.18').
+- name: net_profit_page
+  type: varchar
+  description: PDF page citation for Net Profit (e.g. 'p.18').
+- name: operating_cash_flow_page
+  type: varchar
+  description: PDF page citation for Operating Cash Flow (e.g. 'p.24').
+- name: capex_page
+  type: varchar
+  description: PDF page citation for Capex (e.g. 'p.25').

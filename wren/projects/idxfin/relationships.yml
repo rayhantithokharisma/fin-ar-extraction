@@ -1,0 +1,29 @@
+relationships:
+  - name: financial_summary_to_market_valuation
+    models:
+      - financial_summary
+      - market_valuation
+    join_type: ONE_TO_ONE
+    condition: "financial_summary.issuer_id = market_valuation.issuer_id AND financial_summary.period_end = market_valuation.period_end"
+
+  - name: financial_summary_to_provenance
+    models:
+      - financial_summary
+      - financial_summary_provenance
+    join_type: ONE_TO_ONE
+    condition: "financial_summary.issuer_id = financial_summary_provenance.issuer_id AND financial_summary.period_end = financial_summary_provenance.period_end"
+
+  - name: financial_summary_to_officers
+    models:
+      - financial_summary
+      - officer_position
+    join_type: ONE_TO_MANY
+    condition: "financial_summary.issuer_id = officer_position.issuer_id"
+
+  - name: financial_summary_to_audit_report
+    models:
+      - financial_summary
+      - audit_report
+    join_type: ONE_TO_ONE
+    condition: "financial_summary.issuer_id = audit_report.issuer_id AND financial_summary.fiscal_year = audit_report.fiscal_year"
+

@@ -1,0 +1,44 @@
+name: commodity_trend_monthly
+table_reference:
+  schema: idxfin_gold
+  table: commodity_trend_monthly
+  catalog: idxfin
+description: Monthly aggregated commodity benchmark prices, physical spot assessments, and proxies. Includes Gold
+  (GC=F), WTI Crude (CL=F), Brent Crude (BZ=F), Anhydrous Ammonia Spot Benchmark (NH3=F in USD/ton),
+  and Ammonia proxies (ESSA.JK, CF, UAN, NG=F).
+primary_key:
+- symbol
+- month_date
+columns:
+- name: symbol
+  type: varchar
+  description: 'Commodity symbol: GC=F (Gold), CL=F (WTI Oil), BZ=F (Brent Oil), NH3=F (Anhydrous Ammonia Spot Benchmark in USD/ton),
+    ESSA.JK (Domestic Ammonia producer), CF (Global Ammonia producer), UAN (Ammonia Fertilizer proxy), NG=F (Natural Gas feedgas).'
+- name: commodity_name
+  type: varchar
+  description: Full descriptive name of the commodity benchmark or proxy.
+- name: commodity_category
+  type: varchar
+  description: 'Category: PRECIOUS_METALS, ENERGY, CHEMICALS_FERTILIZERS.'
+- name: month_date
+  type: date
+  description: First day of the calendar month (e.g. 2025-01-01).
+- name: avg_close
+  type: decimal
+  description: Average closing price across all trading days in the month.
+- name: min_close
+  type: decimal
+  description: Minimum daily close during the month.
+- name: max_close
+  type: decimal
+  description: Maximum daily close during the month.
+- name: end_month_close
+  type: decimal
+  description: Final trading day closing price of the month.
+- name: monthly_return_pct
+  type: decimal
+  description: Monthly percentage price return ((last_close - first_close) / first_close
+    * 100).
+- name: unit
+  type: varchar
+  description: 'Trading unit: USD/ton, USD/troy oz, USD/bbl, USD/MMBtu, IDR/share, USD/share.'
