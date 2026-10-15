@@ -1,5 +1,7 @@
 # IDX Financial Statement & Annual Report Extraction Pipeline
 
+-----------
+
 An enterprise-grade, LLM-powered extraction and analysis pipeline for Indonesian capital market filings (**Bursa Efek Indonesia / IDX**). 
 
 The system automates the ingestion, structural sectionizing, information extraction, normalization, accounting validation, and analytical aggregation for:
